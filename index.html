@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Rally Dashboard</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -34,6 +34,8 @@
             margin: 0;
             padding: 0;
             background-color: #f9fafb;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
         }
         
         .btn-primary {
@@ -229,16 +231,131 @@
             background-color: #1d4ed8;
         }
         
+        /* Responsive design para móviles */
         @media (max-width: 768px) {
             .btn-category {
                 padding: 8px 16px;
                 font-size: 14px;
+                width: calc(50% - 8px);
+                margin: 4px;
             }
             
             .table-rally th,
             .table-rally td {
-                padding: 8px;
+                padding: 8px 4px;
                 font-size: 12px;
+            }
+            
+            .table-rally th:nth-child(1),
+            .table-rally td:nth-child(1) {
+                width: 40px;
+            }
+            
+            .table-rally th:nth-child(2),
+            .table-rally td:nth-child(2) {
+                width: 50px;
+            }
+            
+            .table-rally th:nth-child(3),
+            .table-rally td:nth-child(3),
+            .table-rally th:nth-child(4),
+            .table-rally td:nth-child(4) {
+                width: 80px;
+            }
+            
+            .table-rally th:nth-child(5),
+            .table-rally td:nth-child(5) {
+                width: 60px;
+            }
+            
+            .table-rally th:nth-child(6),
+            .table-rally td:nth-child(6),
+            .table-rally th:nth-child(7),
+            .table-rally td:nth-child(7) {
+                width: 90px;
+            }
+            
+            .table-rally th:nth-child(8),
+            .table-rally td:nth-child(8) {
+                width: 50px;
+            }
+        }
+        
+        /* Responsive design para móviles pequeños */
+        @media (max-width: 480px) {
+            .btn-category {
+                padding: 6px 12px;
+                font-size: 12px;
+                width: 100%;
+                margin: 2px 0;
+            }
+            
+            .table-rally th,
+            .table-rally td {
+                padding: 6px 2px;
+                font-size: 10px;
+            }
+        }
+        
+        /* Estilos para desktop - anchos fijos */
+        @media (min-width: 769px) {
+            .table-rally {
+                min-width: 600px;
+            }
+            
+            .table-rally th:nth-child(1),
+            .table-rally td:nth-child(1) {
+                width: 50px; /* Pos */
+            }
+            
+            .table-rally th:nth-child(2),
+            .table-rally td:nth-child(2) {
+                width: 50px; /* Auto */
+            }
+            
+            .table-rally th:nth-child(3),
+            .table-rally td:nth-child(3),
+            .table-rally th:nth-child(4),
+            .table-rally td:nth-child(4) {
+                width: 100px; /* Piloto/Navegante */
+            }
+            
+            .table-rally th:nth-child(5),
+            .table-rally td:nth-child(5) {
+                width: 70px; /* Clase */
+            }
+            
+            .table-rally th:nth-child(6),
+            .table-rally td:nth-child(6),
+            .table-rally th:nth-child(7),
+            .table-rally td:nth-child(7) {
+                width: 110px; /* Tiempo/Diferencia */
+                text-align: right;
+                padding-right: 12px;
+            }
+            
+            .table-rally th:nth-child(8),
+            .table-rally td:nth-child(8) {
+                width: 60px; /* Puntos */
+            }
+        }
+        
+        /* Scroll horizontal en móviles */
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Ajustar tablas para que quepan mejor */
+        @media (min-width: 769px) {
+            .table-container {
+                overflow-x: auto;
+                max-width: 100%;
+            }
+            
+            .card {
+                max-width: 100%;
+                overflow: hidden;
             }
         }
     </style>
@@ -276,78 +393,162 @@
             pruebas,
             dias 
         }) => {
+            const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+            
+            useEffect(() => {
+                const handleResize = () => {
+                    setIsMobile(window.innerWidth <= 768);
+                };
+                window.addEventListener('resize', handleResize);
+                return () => window.removeEventListener('resize', handleResize);
+            }, []);
+
             return (
                 <header className="header fade-in">
                     <div style={{maxWidth: '1280px', margin: '0 auto', padding: '0 16px'}}>
-                        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px', flexWrap: 'wrap', gap: '16px'}}>
-                            {/* Navegación izquierda */}
-                            <div style={{display: 'flex', alignItems: 'center', gap: '16px'}}>
-                                <button 
-                                    onClick={() => onRallyChange('prev')}
-                                    className="nav-button"
-                                    title="Rally anterior"
-                                >
-                                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                    </svg>
-                                </button>
-                                <button 
-                                    onClick={() => onRallyChange('next')}
-                                    className="nav-button"
-                                    title="Rally siguiente"
-                                >
-                                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            {/* Logo central */}
-                            <div style={{flex: '1', minWidth: '0'}}>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                                    <div style={{width: '40px', height: '40px', backgroundColor: '#1e40af', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: '0'}}>
-                                        <span style={{color: 'white', fontWeight: 'bold', fontSize: '18px'}}>R</span>
+                        {isMobile ? (
+                            // Layout móvil
+                            <div style={{padding: '16px 0'}}>
+                                {/* Logo y navegación en una fila */}
+                                <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px'}}>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                                        <div style={{width: '32px', height: '32px', backgroundColor: '#1e40af', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                            <span style={{color: 'white', fontWeight: 'bold', fontSize: '14px'}}>R</span>
+                                        </div>
+                                        <div>
+                                            <h1 style={{fontSize: '16px', fontWeight: 'bold', color: '#111827', margin: '0'}}>{currentRally}</h1>
+                                            <p style={{fontSize: '12px', color: '#6b7280', margin: '0'}}>Dashboard</p>
+                                        </div>
                                     </div>
-                                    <div style={{minWidth: '0'}}>
-                                        <h1 style={{fontSize: '20px', fontWeight: 'bold', color: '#111827', margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{currentRally}</h1>
-                                        <p style={{fontSize: '14px', color: '#6b7280', margin: '0'}}>Dashboard de Tiempos</p>
+                                    <div style={{display: 'flex', gap: '8px'}}>
+                                        <button 
+                                            onClick={() => onRallyChange('prev')}
+                                            className="nav-button"
+                                            title="Rally anterior"
+                                        >
+                                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                            </svg>
+                                        </button>
+                                        <button 
+                                            onClick={() => onRallyChange('next')}
+                                            className="nav-button"
+                                            title="Rally siguiente"
+                                        >
+                                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </button>
                                     </div>
-                                </div>
-                            </div>
-
-                            {/* Dropdowns derecha */}
-                            <div style={{display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap'}}>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                    <label style={{fontSize: '14px', fontWeight: '500', color: '#374151', display: window.innerWidth > 640 ? 'block' : 'none'}}>
-                                        Prueba:
-                                    </label>
-                                    <select
-                                        value={selectedPrueba}
-                                        onChange={(e) => onPruebaChange(e.target.value)}
-                                        className="select-input"
-                                    >
-                                        {pruebas.map(prueba => (
-                                            <option key={prueba} value={prueba}>{prueba}</option>
-                                        ))}
-                                    </select>
                                 </div>
                                 
-                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
-                                    <label style={{fontSize: '14px', fontWeight: '500', color: '#374151', display: window.innerWidth > 640 ? 'block' : 'none'}}>
-                                        Etapas:
-                                    </label>
-                                    <select
-                                        value={selectedDia}
-                                        onChange={(e) => onDiaChange(e.target.value)}
-                                        className="select-input"
-                                    >
-                                        {dias.map(dia => (
-                                            <option key={dia} value={dia}>{dia}</option>
-                                        ))}
-                                    </select>
+                                {/* Dropdowns en fila separada */}
+                                <div style={{display: 'flex', gap: '12px', flexWrap: 'wrap'}}>
+                                    <div style={{flex: '1', minWidth: '120px'}}>
+                                        <label style={{fontSize: '12px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '4px'}}>
+                                            Prueba:
+                                        </label>
+                                        <select
+                                            value={selectedPrueba}
+                                            onChange={(e) => onPruebaChange(e.target.value)}
+                                            className="select-input"
+                                            style={{width: '100%'}}
+                                        >
+                                            {pruebas.map(prueba => (
+                                                <option key={prueba} value={prueba}>{prueba}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    
+                                    <div style={{flex: '1', minWidth: '120px'}}>
+                                        <label style={{fontSize: '12px', fontWeight: '500', color: '#374151', display: 'block', marginBottom: '4px'}}>
+                                            Etapas:
+                                        </label>
+                                        <select
+                                            value={selectedDia}
+                                            onChange={(e) => onDiaChange(e.target.value)}
+                                            className="select-input"
+                                            style={{width: '100%'}}
+                                        >
+                                            {dias.map(dia => (
+                                                <option key={dia} value={dia}>{dia}</option>
+                                            ))}
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        ) : (
+                            // Layout desktop
+                            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px', flexWrap: 'wrap', gap: '16px'}}>
+                                {/* Navegación izquierda */}
+                                <div style={{display: 'flex', alignItems: 'center', gap: '16px'}}>
+                                    <button 
+                                        onClick={() => onRallyChange('prev')}
+                                        className="nav-button"
+                                        title="Rally anterior"
+                                    >
+                                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                        </svg>
+                                    </button>
+                                    <button 
+                                        onClick={() => onRallyChange('next')}
+                                        className="nav-button"
+                                        title="Rally siguiente"
+                                    >
+                                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                {/* Logo central */}
+                                <div style={{flex: '1', minWidth: '0'}}>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                                        <div style={{width: '40px', height: '40px', backgroundColor: '#1e40af', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: '0'}}>
+                                            <span style={{color: 'white', fontWeight: 'bold', fontSize: '18px'}}>R</span>
+                                        </div>
+                                        <div style={{minWidth: '0'}}>
+                                            <h1 style={{fontSize: '20px', fontWeight: 'bold', color: '#111827', margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{currentRally}</h1>
+                                            <p style={{fontSize: '14px', color: '#6b7280', margin: '0'}}>Dashboard de Tiempos</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Dropdowns derecha */}
+                                <div style={{display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap'}}>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                        <label style={{fontSize: '14px', fontWeight: '500', color: '#374151', display: window.innerWidth > 640 ? 'block' : 'none'}}>
+                                            Prueba:
+                                        </label>
+                                        <select
+                                            value={selectedPrueba}
+                                            onChange={(e) => onPruebaChange(e.target.value)}
+                                            className="select-input"
+                                        >
+                                            {pruebas.map(prueba => (
+                                                <option key={prueba} value={prueba}>{prueba}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                        <label style={{fontSize: '14px', fontWeight: '500', color: '#374151', display: window.innerWidth > 640 ? 'block' : 'none'}}>
+                                            Etapas:
+                                        </label>
+                                        <select
+                                            value={selectedDia}
+                                            onChange={(e) => onDiaChange(e.target.value)}
+                                            className="select-input"
+                                        >
+                                            {dias.map(dia => (
+                                                <option key={dia} value={dia}>{dia}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </header>
             );
@@ -357,8 +558,8 @@
         const CategoryButtons = ({ categories, selectedCategory, onCategorySelect }) => {
             return (
                 <div className="slide-up" style={{backgroundColor: 'white', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)', borderBottom: '1px solid #e5e7eb'}}>
-                    <div style={{maxWidth: '1280px', margin: '0 auto', padding: '16px'}}>
-                        <div style={{display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center'}}>
+                    <div style={{maxWidth: '1280px', margin: '0 auto', padding: window.innerWidth <= 768 ? '12px' : '16px'}}>
+                        <div style={{display: 'flex', flexWrap: 'wrap', gap: window.innerWidth <= 768 ? '8px' : '12px', justifyContent: 'center'}}>
                             {categories.map((category, index) => (
                                 <button
                                     key={category}
@@ -397,7 +598,7 @@
                         <h3 style={{fontSize: '18px', fontWeight: '600', color: '#111827', margin: '0'}}>{title}</h3>
                     </div>
                     
-                    <div style={{overflowX: 'auto'}}>
+                    <div className="table-container">
                         <table className="table-rally">
                             <thead>
                                 <tr>
@@ -490,6 +691,7 @@
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState(null);
             const [categorias, setCategorias] = useState(['General']);
+            const [categoriasLoaded, setCategoriasLoaded] = useState(false);
             const [dataLoaded, setDataLoaded] = useState(false);
 
             const rallies = ['Rally San Martín 2024', 'Rally Cordoba 2024', 'Rally Mendoza 2024'];
@@ -543,8 +745,8 @@
             // Siempre mostrar Etapa 1 y Etapa 2 como opciones, independientemente de los datos de BD
             const dias = ['Etapa 1', 'Etapa 2'];
             
-            // Función para obtener clases reales desde Supabase y localStorage
-            const getRealClasses = async () => {
+            // Función para cargar categorías de forma asíncrona
+            const loadCategorias = async () => {
                 try {
                     let todasLasClases = [];
                     
@@ -603,13 +805,15 @@
                     console.log('📊 Clases únicas encontradas:', clasesUnicas);
                     
                     if (clasesUnicas.length > 0) {
-                        return ['General', ...clasesUnicas];
+                        setCategorias(['General', ...clasesUnicas]);
                     } else {
-                        return ['General', 'Inv.', 'RC5', 'A6']; // Default classes if none found
+                        setCategorias(['General', 'Inv.', 'RC5', 'A6']); // Default classes if none found
                     }
+                    setCategoriasLoaded(true);
                 } catch (error) {
                     console.error('Error obteniendo clases:', error);
-                    return ['General', 'Inv.', 'RC5', 'A6']; // Default classes on error
+                    setCategorias(['General', 'Inv.', 'RC5', 'A6']); // Default classes on error
+                    setCategoriasLoaded(true);
                 }
             };
 
@@ -679,17 +883,8 @@
                         
                         setError(null);
                         
-                        // Actualizar categorías con las clases reales del Excel
-                        getRealClasses().then(nuevasCategorias => {
-                            if (Array.isArray(nuevasCategorias)) {
-                                setCategorias(nuevasCategorias);
-                            } else {
-                                setCategorias(['General']);
-                            }
-                        }).catch(error => {
-                            console.error('Error obteniendo categorías:', error);
-                            setCategorias(['General']);
-                        });
+                        // Cargar categorías de forma asíncrona
+                        loadCategorias();
                     } catch (err) {
                         console.error('Error cargando datos:', err);
                         setError(err.message);
@@ -699,6 +894,7 @@
                 };
 
                 loadData();
+                loadCategorias();
 
                 // Auto-refresh every 60 seconds (reducido para evitar conflictos)
                 const interval = setInterval(loadData, 60000);
@@ -707,13 +903,7 @@
                 const handleStorageChange = (e) => {
                     if (e.key === 'autos_info' || e.key === 'pilotos_data' || e.key === 'rally_data') {
                         console.log('📊 Cambio detectado en localStorage:', e.key);
-                        getRealClasses().then(nuevasCategorias => {
-                            if (Array.isArray(nuevasCategorias)) {
-                                setCategorias(nuevasCategorias);
-                            }
-                        }).catch(error => {
-                            console.error('Error obteniendo categorías:', error);
-                        });
+                        loadCategorias();
                         // Solo forzar re-render si ya hay datos cargados
                         if (dataLoaded) {
                             setTiemposData(prevData => [...prevData]);
@@ -723,18 +913,7 @@
 
                 // Listener para cambios en la misma pestaña
                 const handleStorageChangeSameTab = () => {
-                    getRealClasses().then(nuevasCategorias => {
-                        if (Array.isArray(nuevasCategorias) && JSON.stringify(nuevasCategorias) !== JSON.stringify(categorias)) {
-                            console.log('📊 Categorías actualizadas desde localStorage');
-                            setCategorias(nuevasCategorias);
-                            // Solo forzar re-render si ya hay datos cargados
-                            if (dataLoaded) {
-                                setTiemposData(prevData => [...prevData]);
-                            }
-                        }
-                    }).catch(error => {
-                        console.error('Error obteniendo categorías:', error);
-                    });
+                    loadCategorias();
                 };
 
                 window.addEventListener('storage', handleStorageChange);
@@ -1111,18 +1290,26 @@
                     />
 
                     {/* Botones de categorías */}
-                    <CategoryButtons
-                        categories={Array.isArray(categorias) ? categorias : ['General']}
-                        selectedCategory={selectedCategory}
-                        onCategorySelect={setSelectedCategory}
-                    />
+                    {categoriasLoaded && (
+                        <CategoryButtons
+                            categories={categorias}
+                            selectedCategory={selectedCategory}
+                            onCategorySelect={setSelectedCategory}
+                        />
+                    )}
 
                     {/* Contenido principal */}
-                    <main style={{maxWidth: '1280px', margin: '0 auto', padding: '32px 16px'}}>
+                    <main style={{maxWidth: '1400px', margin: '0 auto', padding: window.innerWidth <= 768 ? '16px 8px' : '32px 8px'}}>
                         <div 
                             key={`${selectedCategory}-${selectedPrueba}`}
                             className="fade-in"
-                            style={{display: 'grid', gridTemplateColumns: window.innerWidth > 1024 ? '1fr 1fr' : '1fr', gap: '32px'}}
+                            style={{
+                                display: 'grid', 
+                                gridTemplateColumns: window.innerWidth > 1200 ? '1fr 1fr' : '1fr', 
+                                gap: window.innerWidth <= 768 ? '16px' : '24px',
+                                maxWidth: '100%',
+                                overflow: 'hidden'
+                            }}
                         >
                             {/* Columna izquierda - Tiempo por Prueba */}
                             <ResultsTable
@@ -1140,9 +1327,9 @@
                         </div>
 
                         {/* Información adicional */}
-                        <div className="card fade-in" style={{marginTop: '32px', padding: '24px'}}>
-                            <h3 style={{fontSize: '18px', fontWeight: '600', color: '#111827', marginBottom: '16px'}}>Información del Rally</h3>
-                            <div style={{display: 'grid', gridTemplateColumns: window.innerWidth > 768 ? 'repeat(3, 1fr)' : '1fr', gap: '16px', fontSize: '14px'}}>
+                        <div className="card fade-in" style={{marginTop: window.innerWidth <= 768 ? '16px' : '32px', padding: window.innerWidth <= 768 ? '16px' : '24px'}}>
+                            <h3 style={{fontSize: window.innerWidth <= 768 ? '16px' : '18px', fontWeight: '600', color: '#111827', marginBottom: '16px'}}>Información del Rally</h3>
+                            <div style={{display: 'grid', gridTemplateColumns: window.innerWidth > 768 ? 'repeat(3, 1fr)' : '1fr', gap: '16px', fontSize: window.innerWidth <= 768 ? '12px' : '14px'}}>
                                 <div>
                                     <span style={{fontWeight: '500', color: '#374151'}}>Rally:</span>
                                     <span style={{marginLeft: '8px', color: '#111827'}}>{currentRally}</span>
