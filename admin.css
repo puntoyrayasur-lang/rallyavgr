@@ -1,0 +1,290 @@
+/* Estilos específicos para la página de administración */
+
+/* Estilos eliminados - Sin autenticación */
+
+/* Panel de Administración */
+.admin-panel {
+    border: 2px dashed var(--primary-color);
+    border-radius: 15px;
+    padding: 20px;
+    margin: 20px 0;
+    background: rgba(204, 0, 0, 0.05);
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(204, 0, 0, 0.1), rgba(238, 90, 36, 0.1));
+    border-radius: 15px;
+    border: 2px solid var(--primary-color);
+}
+
+.admin-header h3 {
+    color: var(--text-color);
+    margin: 0;
+}
+
+.admin-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.admin-badge {
+    background: var(--gradient-primary);
+    color: white;
+    padding: 8px 15px;
+    border-radius: 20px;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+/* Estilos para carga de PDF */
+.pdf-upload-section {
+    margin-bottom: 30px;
+}
+
+.upload-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.upload-area {
+    border: 3px dashed var(--border-color);
+    border-radius: 15px;
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: var(--gradient-card);
+}
+
+.upload-area:hover,
+.upload-area.drag-over {
+    border-color: var(--primary-color);
+    background: rgba(204, 0, 0, 0.05);
+}
+
+.upload-content i {
+    font-size: 3em;
+    color: var(--primary-color);
+    margin-bottom: 20px;
+}
+
+.upload-content h4 {
+    color: var(--text-color);
+    margin-bottom: 10px;
+}
+
+.upload-content p {
+    color: var(--text-muted);
+    font-size: 0.9em;
+}
+
+.upload-actions,
+.preview-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.processing-status {
+    text-align: center;
+    padding: 20px;
+}
+
+.processing-status .status-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: var(--text-color);
+}
+
+.processing-status i {
+    color: var(--primary-color);
+}
+
+.preview-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    margin: 20px 0;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+
+.preview-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.preview-table th,
+.preview-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.preview-table th {
+    background: var(--accent-color);
+    color: var(--text-color);
+    font-weight: bold;
+    position: sticky;
+    top: 0;
+}
+
+.preview-table td {
+    color: var(--text-color);
+}
+
+.preview-table tr:hover {
+    background: rgba(204, 0, 0, 0.05);
+}
+
+/* Efectos eliminados */
+
+/* Indicador visual de modo admin */
+body.admin-mode {
+    border-top: 4px solid var(--primary-color);
+}
+
+body.admin-mode::before {
+    content: "MODO ADMINISTRADOR";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: var(--gradient-primary);
+    color: white;
+    text-align: center;
+    padding: 5px;
+    font-size: 0.8em;
+    font-weight: bold;
+    z-index: 9999;
+}
+
+/* Footer para admin */
+.footer {
+    background: linear-gradient(135deg, var(--card-background), var(--background-color));
+    border-top: 2px solid var(--primary-color);
+    margin-top: 50px;
+    padding: 30px 0;
+}
+
+.footer-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.footer-info h4 {
+    color: var(--text-color);
+    margin-bottom: 5px;
+    font-size: 1.2em;
+}
+
+.footer-info p {
+    color: var(--text-muted);
+    margin: 0;
+    font-size: 0.9em;
+}
+
+.footer-stats {
+    display: flex;
+    gap: 30px;
+}
+
+.footer-stats .stat {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+    font-size: 0.9em;
+}
+
+.footer-stats .stat i {
+    color: var(--primary-color);
+    font-size: 1.1em;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    
+    .admin-header {
+        flex-direction: column;
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .footer-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 15px;
+    }
+    
+    .footer-stats {
+        justify-content: center;
+        gap: 20px;
+    }
+    
+    .upload-actions,
+    .preview-actions {
+        flex-direction: column;
+    }
+    
+    .upload-area {
+        padding: 30px 20px;
+    }
+}
+
+/* Mejoras visuales para admin */
+.admin-panel .section-header h4 {
+    color: var(--primary-color);
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 10px;
+}
+
+/* Animaciones para admin */
+.admin-panel {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Estilos para notificaciones de admin */
+.notification {
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+}
+
+.notification.success {
+    background: linear-gradient(135deg, rgba(46, 204, 113, 0.9), rgba(39, 174, 96, 0.9));
+}
+
+.notification.error {
+    background: linear-gradient(135deg, rgba(231, 76, 60, 0.9), rgba(192, 57, 43, 0.9));
+}
+
+.notification.info {
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.9), rgba(41, 128, 185, 0.9));
+}
+
+.notification.warning {
+    background: linear-gradient(135deg, rgba(241, 196, 15, 0.9), rgba(230, 126, 34, 0.9));
+}
