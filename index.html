@@ -681,7 +681,14 @@
                         
                         // Actualizar categorías con las clases reales del Excel
                         getRealClasses().then(nuevasCategorias => {
-                            setCategorias(nuevasCategorias);
+                            if (Array.isArray(nuevasCategorias)) {
+                                setCategorias(nuevasCategorias);
+                            } else {
+                                setCategorias(['General']);
+                            }
+                        }).catch(error => {
+                            console.error('Error obteniendo categorías:', error);
+                            setCategorias(['General']);
                         });
                     } catch (err) {
                         console.error('Error cargando datos:', err);
@@ -700,8 +707,13 @@
                 const handleStorageChange = (e) => {
                     if (e.key === 'autos_info' || e.key === 'pilotos_data' || e.key === 'rally_data') {
                         console.log('📊 Cambio detectado en localStorage:', e.key);
-                        const nuevasCategorias = getRealClasses();
-                        setCategorias(nuevasCategorias);
+                        getRealClasses().then(nuevasCategorias => {
+                            if (Array.isArray(nuevasCategorias)) {
+                                setCategorias(nuevasCategorias);
+                            }
+                        }).catch(error => {
+                            console.error('Error obteniendo categorías:', error);
+                        });
                         // Solo forzar re-render si ya hay datos cargados
                         if (dataLoaded) {
                             setTiemposData(prevData => [...prevData]);
@@ -711,15 +723,18 @@
 
                 // Listener para cambios en la misma pestaña
                 const handleStorageChangeSameTab = () => {
-                    const nuevasCategorias = getRealClasses();
-                    if (JSON.stringify(nuevasCategorias) !== JSON.stringify(categorias)) {
-                        console.log('📊 Categorías actualizadas desde localStorage');
-                        setCategorias(nuevasCategorias);
-                        // Solo forzar re-render si ya hay datos cargados
-                        if (dataLoaded) {
-                            setTiemposData(prevData => [...prevData]);
+                    getRealClasses().then(nuevasCategorias => {
+                        if (Array.isArray(nuevasCategorias) && JSON.stringify(nuevasCategorias) !== JSON.stringify(categorias)) {
+                            console.log('📊 Categorías actualizadas desde localStorage');
+                            setCategorias(nuevasCategorias);
+                            // Solo forzar re-render si ya hay datos cargados
+                            if (dataLoaded) {
+                                setTiemposData(prevData => [...prevData]);
+                            }
                         }
-                    }
+                    }).catch(error => {
+                        console.error('Error obteniendo categorías:', error);
+                    });
                 };
 
                 window.addEventListener('storage', handleStorageChange);
@@ -1097,7 +1112,7 @@
 
                     {/* Botones de categorías */}
                     <CategoryButtons
-                        categories={categorias}
+                        categories={Array.isArray(categorias) ? categorias : ['General']}
                         selectedCategory={selectedCategory}
                         onCategorySelect={setSelectedCategory}
                     />
