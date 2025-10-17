@@ -541,20 +541,48 @@ async function saveToDatabase() {
             return;
         }
         
-        // LIMPIAR localStorage completamente para evitar datos antiguos
-        console.log('🧹 Limpiando localStorage anterior...');
-        localStorage.removeItem('autos_info');
+        // Verificar conexión a Supabase
+        if (!supabase) {
+            throw new Error('No hay conexión a Supabase');
+        }
         
-        // Obtener datos existentes del localStorage
-        let autosInfo = JSON.parse(localStorage.getItem('autos_info') || '{}');
-        console.log('Datos existentes:', autosInfo);
+        // Preparar datos para Supabase
+        const pilotosData = extractedData.map(item => ({
+            numero_auto: String(item.numero),
+            piloto: item.piloto,
+            navegante: item.navegante,
+            clase: item.clase
+        }));
         
-        // Actualizar con los nuevos datos
+        console.log('💾 Guardando pilotos en Supabase:', pilotosData);
+        
+        // Limpiar tabla de pilotos existente
+        const { error: deleteError } = await supabase
+            .from('pilotos')
+            .delete()
+            .neq('id', 0); // Eliminar todos los registros
+        
+        if (deleteError) {
+            console.warn('Error eliminando pilotos existentes:', deleteError);
+        }
+        
+        // Insertar nuevos datos de pilotos
+        const { data: insertedData, error: insertError } = await supabase
+            .from('pilotos')
+            .insert(pilotosData)
+            .select();
+        
+        if (insertError) {
+            throw insertError;
+        }
+        
+        console.log('✅ Pilotos guardados en Supabase:', insertedData);
+        
+        // También guardar en localStorage como respaldo
+        console.log('💾 Guardando también en localStorage como respaldo...');
+        const autosInfo = {};
         extractedData.forEach(item => {
-            console.log('Guardando auto:', item.numero, item);
-            // Convertir número a string para que coincida con la BD
             const numeroAuto = String(item.numero);
-            console.log(`💾 Guardando auto ${numeroAuto} con piloto: ${item.piloto}, navegante: ${item.navegante}, clase: ${item.clase}`);
             autosInfo[numeroAuto] = {
                 piloto: item.piloto,
                 navegante: item.navegante,
@@ -562,17 +590,9 @@ async function saveToDatabase() {
                 updated_at: new Date().toISOString()
             };
         });
-        
-        console.log('Datos finales a guardar:', autosInfo);
-        
-        // Guardar en localStorage
         localStorage.setItem('autos_info', JSON.stringify(autosInfo));
         
-        // Verificar que se guardó correctamente
-        const savedData = JSON.parse(localStorage.getItem('autos_info') || '{}');
-        console.log('Datos guardados verificados:', savedData);
-        
-        showNotification(`${extractedData.length} autos guardados correctamente`, 'success');
+        showNotification(`${extractedData.length} pilotos guardados correctamente en Supabase`, 'success');
         clearUpload();
         
         // Actualizar la página para mostrar los nuevos datos

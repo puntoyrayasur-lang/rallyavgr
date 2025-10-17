@@ -543,41 +543,59 @@
             // Siempre mostrar Etapa 1 y Etapa 2 como opciones, independientemente de los datos de BD
             const dias = ['Etapa 1', 'Etapa 2'];
             
-            // Función para obtener clases reales del localStorage (datos del Excel)
-            const getRealClasses = () => {
+            // Función para obtener clases reales desde Supabase y localStorage
+            const getRealClasses = async () => {
                 try {
-                    // Buscar en diferentes ubicaciones posibles
-                    const autosInfo = JSON.parse(localStorage.getItem('autos_info') || '{}');
-                    const pilotosData = JSON.parse(localStorage.getItem('pilotos_data') || '{}');
-                    const rallyData = JSON.parse(localStorage.getItem('rally_data') || '{}');
-                    
-                    // Combinar todas las fuentes posibles
                     let todasLasClases = [];
                     
-                    // De autos_info (datos del Excel subido desde admin)
-                    if (autosInfo && Object.keys(autosInfo).length > 0) {
-                        const clasesAutos = Object.values(autosInfo).map(auto => auto.clase).filter(clase => clase);
-                        todasLasClases = [...todasLasClases, ...clasesAutos];
-                        console.log('📊 Clases desde autos_info:', clasesAutos);
+                    // Intentar obtener clases desde Supabase primero
+                    if (supabase) {
+                        try {
+                            const { data: pilotos, error } = await supabase
+                                .from('pilotos')
+                                .select('clase');
+                            
+                            if (!error && pilotos && pilotos.length > 0) {
+                                const clasesSupabase = [...new Set(pilotos.map(p => p.clase).filter(clase => clase))];
+                                todasLasClases = [...todasLasClases, ...clasesSupabase];
+                                console.log('📊 Clases desde Supabase pilotos:', clasesSupabase);
+                            }
+                        } catch (error) {
+                            console.warn('Error obteniendo clases de Supabase:', error);
+                        }
                     }
                     
-                    // De pilotos_data
-                    if (pilotosData && Object.keys(pilotosData).length > 0) {
-                        const clasesPilotos = Object.values(pilotosData).map(piloto => piloto.clase).filter(clase => clase);
-                        todasLasClases = [...todasLasClases, ...clasesPilotos];
+                    // Fallback a localStorage si no hay datos de Supabase
+                    if (todasLasClases.length === 0) {
+                        const autosInfo = JSON.parse(localStorage.getItem('autos_info') || '{}');
+                        const pilotosData = JSON.parse(localStorage.getItem('pilotos_data') || '{}');
+                        const rallyData = JSON.parse(localStorage.getItem('rally_data') || '{}');
+                        
+                        // De autos_info (datos del Excel subido desde admin)
+                        if (autosInfo && Object.keys(autosInfo).length > 0) {
+                            const clasesAutos = Object.values(autosInfo).map(auto => auto.clase).filter(clase => clase);
+                            todasLasClases = [...todasLasClases, ...clasesAutos];
+                            console.log('📊 Clases desde localStorage autos_info:', clasesAutos);
+                        }
+                        
+                        // De pilotos_data
+                        if (pilotosData && Object.keys(pilotosData).length > 0) {
+                            const clasesPilotos = Object.values(pilotosData).map(piloto => piloto.clase).filter(clase => clase);
+                            todasLasClases = [...todasLasClases, ...clasesPilotos];
+                        }
+                        
+                        // De rally_data
+                        if (rallyData && Object.keys(rallyData).length > 0) {
+                            const clasesRally = Object.values(rallyData).map(rally => rally.clase).filter(clase => clase);
+                            todasLasClases = [...todasLasClases, ...clasesRally];
+                        }
                     }
                     
-                    // De rally_data
-                    if (rallyData && Object.keys(rallyData).length > 0) {
-                        const clasesRally = Object.values(rallyData).map(rally => rally.clase).filter(clase => clase);
-                        todasLasClases = [...todasLasClases, ...clasesRally];
-                    }
-                    
-                    // También obtener clases de los datos de Supabase si no hay datos en localStorage
+                    // También obtener clases de los datos de tiempos si no hay datos de pilotos
                     if (todasLasClases.length === 0 && tiemposData && tiemposData.length > 0) {
-                        const clasesSupabase = [...new Set(tiemposData.map(item => item.clase).filter(clase => clase))];
-                        todasLasClases = [...todasLasClases, ...clasesSupabase];
-                        console.log('📊 Clases desde Supabase:', clasesSupabase);
+                        const clasesTiempos = [...new Set(tiemposData.map(item => item.clase).filter(clase => clase))];
+                        todasLasClases = [...todasLasClases, ...clasesTiempos];
+                        console.log('📊 Clases desde tiempos Supabase:', clasesTiempos);
                     }
                     
                     // Eliminar duplicados y ordenar
@@ -662,8 +680,9 @@
                         setError(null);
                         
                         // Actualizar categorías con las clases reales del Excel
-                        const nuevasCategorias = getRealClasses();
-                        setCategorias(nuevasCategorias);
+                        getRealClasses().then(nuevasCategorias => {
+                            setCategorias(nuevasCategorias);
+                        });
                     } catch (err) {
                         console.error('Error cargando datos:', err);
                         setError(err.message);
@@ -766,7 +785,7 @@
             };
 
             // Función para procesar los datos de tiempos y adaptarlos al formato necesario
-            const processTiemposData = () => {
+            const processTiemposData = async () => {
                 if (!tiemposData || tiemposData.length === 0) {
                     return {
                         pruebaData: [],
@@ -774,9 +793,40 @@
                     };
                 }
 
-                // Obtener datos de autos desde localStorage (datos del Excel subido desde admin)
-                const autosInfo = JSON.parse(localStorage.getItem('autos_info') || '{}');
-                console.log('📊 Datos de autos desde localStorage:', autosInfo);
+                // Obtener datos de pilotos desde Supabase
+                let pilotosInfo = {};
+                try {
+                    if (supabase) {
+                        const { data: pilotos, error } = await supabase
+                            .from('pilotos')
+                            .select('*');
+                        
+                        if (!error && pilotos) {
+                            pilotos.forEach(piloto => {
+                                pilotosInfo[piloto.numero_auto] = {
+                                    piloto: piloto.piloto,
+                                    navegante: piloto.navegante,
+                                    clase: piloto.clase
+                                };
+                            });
+                            console.log('📊 Datos de pilotos desde Supabase:', pilotosInfo);
+                        } else {
+                            console.warn('Error obteniendo pilotos de Supabase:', error);
+                            // Fallback a localStorage si Supabase falla
+                            pilotosInfo = JSON.parse(localStorage.getItem('autos_info') || '{}');
+                            console.log('📊 Usando datos de pilotos desde localStorage (fallback):', pilotosInfo);
+                        }
+                    } else {
+                        // Fallback a localStorage si no hay Supabase
+                        pilotosInfo = JSON.parse(localStorage.getItem('autos_info') || '{}');
+                        console.log('📊 Usando datos de pilotos desde localStorage (sin Supabase):', pilotosInfo);
+                    }
+                } catch (error) {
+                    console.error('Error obteniendo datos de pilotos:', error);
+                    // Fallback a localStorage en caso de error
+                    pilotosInfo = JSON.parse(localStorage.getItem('autos_info') || '{}');
+                    console.log('📊 Usando datos de pilotos desde localStorage (error):', pilotosInfo);
+                }
 
                 // Agrupar por número de auto para calcular tiempos totales
                 const autosMap = new Map();
@@ -784,8 +834,8 @@
                 tiemposData.forEach(item => {
                     const key = item.numero_auto;
                     if (!autosMap.has(key)) {
-                        // Usar datos del localStorage si están disponibles, sino usar datos de Supabase
-                        const autoInfo = autosInfo[key] || {};
+                        // Usar datos de pilotos desde Supabase si están disponibles, sino usar datos de Supabase o fallback
+                        const autoInfo = pilotosInfo[key] || {};
                         autosMap.set(key, {
                             numero: item.numero_auto,
                             piloto: autoInfo.piloto || item.piloto || `Piloto ${key}`,
@@ -914,8 +964,8 @@
                 
                 const pruebaData = pruebaDataFiltrada
                     .map(item => {
-                        // Usar datos del localStorage si están disponibles, sino usar datos de Supabase
-                        const autoInfo = autosInfo[item.numero_auto] || {};
+                        // Usar datos de pilotos desde Supabase si están disponibles, sino usar datos de Supabase o fallback
+                        const autoInfo = pilotosInfo[item.numero_auto] || {};
                         return {
                             numero: item.numero_auto,
                             piloto: autoInfo.piloto || item.piloto || `Piloto ${item.numero_auto}`,
@@ -983,7 +1033,16 @@
                 };
             };
 
-            const currentData = processTiemposData();
+            const [currentData, setCurrentData] = useState({ pruebaData: [], generalData: [] });
+            
+            // Efecto para procesar datos cuando cambien
+            useEffect(() => {
+                const loadProcessedData = async () => {
+                    const data = await processTiemposData();
+                    setCurrentData(data);
+                };
+                loadProcessedData();
+            }, [tiemposData, selectedPrueba, selectedDia, selectedCategory]);
             
             // Log para depuración
             console.log('📊 Datos procesados:', {
