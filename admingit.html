@@ -763,13 +763,16 @@
         
         // Función para cargar todos los tiempos de pilotos
         function loadAllPilotTimes() {
-            createTestDataLocal();
+            populatePilotSelect();
+            populatePruebaSelect();
             showNotification('Datos recargados', 'success');
         }
         
         // Función para crear datos de prueba
         function createTestData() {
-            createTestDataLocal();
+            populatePilotSelect();
+            populatePruebaSelect();
+            showNotification('Datos de prueba creados', 'success');
         }
         
         // Función para actualizar el estado de conexión
@@ -782,10 +785,7 @@
             showNotification('Verificando tablas... (Modo Local)', 'info');
         }
         
-        // Función para cargar datos de prueba
-        function createTestDataLocal() {
-            createTestDataLocal();
-        }
+        // Función para cargar datos de prueba (función duplicada eliminada)
         
         // Función para debug de datos
         function debugData() {
