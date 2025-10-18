@@ -240,44 +240,58 @@
                 margin: 4px;
             }
             
+            .table-rally {
+                min-width: 100%;
+                width: 100%;
+            }
+            
             .table-rally th,
             .table-rally td {
-                padding: 8px 4px;
-                font-size: 12px;
+                padding: 6px 2px;
+                font-size: 11px;
+                white-space: nowrap;
             }
             
             .table-rally th:nth-child(1),
             .table-rally td:nth-child(1) {
-                width: 40px;
+                width: 35px;
+                min-width: 35px;
             }
             
             .table-rally th:nth-child(2),
             .table-rally td:nth-child(2) {
-                width: 50px;
+                width: 45px;
+                min-width: 45px;
             }
             
             .table-rally th:nth-child(3),
             .table-rally td:nth-child(3),
             .table-rally th:nth-child(4),
             .table-rally td:nth-child(4) {
-                width: 80px;
+                width: 70px;
+                min-width: 70px;
             }
             
             .table-rally th:nth-child(5),
             .table-rally td:nth-child(5) {
-                width: 60px;
+                width: 50px;
+                min-width: 50px;
             }
             
             .table-rally th:nth-child(6),
             .table-rally td:nth-child(6),
             .table-rally th:nth-child(7),
             .table-rally td:nth-child(7) {
-                width: 90px;
+                width: 80px;
+                min-width: 80px;
+                text-align: right;
+                padding-right: 4px;
             }
             
             .table-rally th:nth-child(8),
             .table-rally td:nth-child(8) {
-                width: 50px;
+                width: 45px;
+                min-width: 45px;
             }
         }
         
@@ -292,8 +306,50 @@
             
             .table-rally th,
             .table-rally td {
-                padding: 6px 2px;
+                padding: 4px 1px;
                 font-size: 10px;
+            }
+            
+            .table-rally th:nth-child(1),
+            .table-rally td:nth-child(1) {
+                width: 30px;
+                min-width: 30px;
+            }
+            
+            .table-rally th:nth-child(2),
+            .table-rally td:nth-child(2) {
+                width: 40px;
+                min-width: 40px;
+            }
+            
+            .table-rally th:nth-child(3),
+            .table-rally td:nth-child(3),
+            .table-rally th:nth-child(4),
+            .table-rally td:nth-child(4) {
+                width: 60px;
+                min-width: 60px;
+            }
+            
+            .table-rally th:nth-child(5),
+            .table-rally td:nth-child(5) {
+                width: 45px;
+                min-width: 45px;
+            }
+            
+            .table-rally th:nth-child(6),
+            .table-rally td:nth-child(6),
+            .table-rally th:nth-child(7),
+            .table-rally td:nth-child(7) {
+                width: 70px;
+                min-width: 70px;
+                text-align: right;
+                padding-right: 2px;
+            }
+            
+            .table-rally th:nth-child(8),
+            .table-rally td:nth-child(8) {
+                width: 40px;
+                min-width: 40px;
             }
         }
         
@@ -344,6 +400,22 @@
         .table-container {
             overflow-x: auto;
             -webkit-overflow-scrolling: touch;
+            width: 100%;
+        }
+        
+        /* Asegurar que las tablas no se desborden en móviles */
+        @media (max-width: 768px) {
+            .table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                width: 100%;
+                max-width: 100vw;
+            }
+            
+            .card {
+                overflow: hidden;
+                max-width: 100%;
+            }
         }
         
         /* Ajustar tablas para que quepan mejor */
