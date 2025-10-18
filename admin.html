@@ -6,8 +6,8 @@
     <title>AVGR - Panel de Administración</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link href="static/css/style.css" rel="stylesheet">
-    <link href="static/css/admin.css" rel="stylesheet">
+    <link href="./static/css/style.css" rel="stylesheet">
+    <link href="./static/css/admin.css" rel="stylesheet">
     <!-- Supabase JavaScript SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <!-- SheetJS para leer archivos Excel -->
@@ -30,8 +30,11 @@
                 <div class="admin-header">
                     <h3><i class="fas fa-user-shield"></i> Panel de Administración</h3>
                     <div class="admin-controls">
-                        <span class="admin-badge">
+                        <span class="admin-badge" id="connection-status">
                             <i class="fas fa-shield-alt"></i> Administrador
+                        </span>
+                        <span class="admin-badge" id="database-status" style="display: none;">
+                            <i class="fas fa-database"></i> <span id="db-status-text">Conectando...</span>
                         </span>
                     </div>
                 </div>
@@ -345,7 +348,9 @@
     <!-- Notification Container -->
     <div class="notification-container" id="notification-container"></div>
 
-    <script src="static/js/main.js"></script>
-    <script src="static/js/admin.js"></script>
+    <!-- Los scripts de JavaScript se cargan al final -->
+    
+    <script src="./static/js/main.js"></script>
+    <script src="./static/js/admin.js"></script>
 </body>
 </html>
