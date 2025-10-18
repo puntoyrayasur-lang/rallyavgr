@@ -2012,11 +2012,11 @@ function timeToSeconds(timeStr) {
     } else if (cleanTime.includes(':') && cleanTime.split(':').length === 2) {
         // Formato MM:SS.CC
         const parts = cleanTime.split(':');
-        const minutes = parseInt(parts[0]) || 0;
-        const secondsParts = parts[1].split('.');
-        const seconds = parseInt(secondsParts[0]) || 0;
-        const milliseconds = parseInt(secondsParts[1]) || 0;
-        
+    const minutes = parseInt(parts[0]) || 0;
+    const secondsParts = parts[1].split('.');
+    const seconds = parseInt(secondsParts[0]) || 0;
+    const milliseconds = parseInt(secondsParts[1]) || 0;
+    
         const totalSeconds = (minutes * 60) + seconds + (milliseconds / 100);
         console.log('Formato MM:SS.CC ->', totalSeconds, 'segundos');
         return totalSeconds;
