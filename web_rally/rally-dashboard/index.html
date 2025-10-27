@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rally Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        rally: {
+                            primary: '#1e40af',
+                            secondary: '#3b82f6',
+                            accent: '#f59e0b',
+                            success: '#10b981',
+                            warning: '#f59e0b',
+                            danger: '#ef4444',
+                        }
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9fafb;
+        }
+        
+        .btn-primary {
+            background-color: #1e40af;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+        
+        .btn-category {
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            margin: 4px;
+        }
+        
+        .btn-category.active {
+            background-color: #1e40af;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-category:not(.active) {
+            background-color: white;
+            color: #374151;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-category:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .table-rally {
+            width: 100%;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .table-rally th {
+            background-color: #f9fafb;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .table-rally td {
+            padding: 12px 16px;
+            font-size: 14px;
+            color: #374151;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .table-rally tbody tr:hover {
+            background-color: #f9fafb;
+        }
+        
+        .table-rally tbody tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+        
+        .header {
+            background-color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+        }
+        
+        .nav-button {
+            padding: 8px;
+            border-radius: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .nav-button:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .select-input {
+            padding: 4px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            background-color: white;
+        }
+        
+        .select-input:focus {
+            outline: none;
+            border-color: #1e40af;
+            box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.2);
+        }
+        
+        .podium-1 { background-color: #fbbf24; color: white; }
+        .podium-2 { background-color: #9ca3af; color: white; }
+        .podium-3 { background-color: #ea580c; color: white; }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @media (max-width: 768px) {
+            .btn-category {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+            
+            .table-rally th,
+            .table-rally td {
+                padding: 8px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+
+        // Datos de prueba simulados
+        const mockData = {
+            rallies: ['Rally San Martín 2024', 'Rally Cordoba 2024', 'Rally Mendoza 2024'],
+            pruebas: ['Prueba 1', 'Prueba 2', 'Prueba 3', 'Prueba 4', 'Prueba 5', 'Prueba 6', 'Prueba 7', 'Prueba 8'],
+            dias: ['Día 1', 'Día 2'],
+            categorias: ['General', 'Clase 1', 'Clase 2', 'Clase 3', 'Clase 4'],
+            
+            resultados: {
+                'General': {
+                    'Prueba 1': [
+                        { auto: 1, piloto: 'Juan Pérez', navegante: 'María García', tiempo: '00:01:23.456', diferencia: null },
+                        { auto: 2, piloto: 'Carlos López', navegante: 'Ana Martínez', tiempo: '00:01:25.123', diferencia: '+00:00:01.667' },
+                        { auto: 3, piloto: 'Miguel Torres', navegante: 'Laura Sánchez', tiempo: '00:01:27.890', diferencia: '+00:00:04.434' },
+                        { auto: 4, piloto: 'Pedro Ramírez', navegante: 'Carmen Díaz', tiempo: '00:01:30.234', diferencia: '+00:00:06.778' },
+                        { auto: 5, piloto: 'Luis Fernández', navegante: 'Isabel Ruiz', tiempo: '00:01:32.567', diferencia: '+00:00:09.111' }
+                    ],
+                    'Prueba 2': [
+                        { auto: 2, piloto: 'Carlos López', navegante: 'Ana Martínez', tiempo: '00:01:20.123', diferencia: null },
+                        { auto: 1, piloto: 'Juan Pérez', navegante: 'María García', tiempo: '00:01:22.456', diferencia: '+00:00:02.333' },
+                        { auto: 3, piloto: 'Miguel Torres', navegante: 'Laura Sánchez', tiempo: '00:01:25.789', diferencia: '+00:00:05.666' },
+                        { auto: 4, piloto: 'Pedro Ramírez', navegante: 'Carmen Díaz', tiempo: '00:01:28.012', diferencia: '+00:00:07.889' },
+                        { auto: 5, piloto: 'Luis Fernández', navegante: 'Isabel Ruiz', tiempo: '00:01:30.345', diferencia: '+00:00:10.222' }
+                    ]
+                },
+                'Clase 1': {
+                    'Prueba 1': [
+                        { auto: 1, piloto: 'Juan Pérez', navegante: 'María García', tiempo: '00:01:23.456', diferencia: null },
+                        { auto: 3, piloto: 'Miguel Torres', navegante: 'Laura Sánchez', tiempo: '00:01:27.890', diferencia: '+00:00:04.434' }
+                    ],
+                    'Prueba 2': [
+                        { auto: 1, piloto: 'Juan Pérez', navegante: 'María García', tiempo: '00:01:22.456', diferencia: null },
+                        { auto: 3, piloto: 'Miguel Torres', navegante: 'Laura Sánchez', tiempo: '00:01:25.789', diferencia: '+00:00:03.333' }
+                    ]
+                },
+                'Clase 2': {
+                    'Prueba 1': [
+                        { auto: 2, piloto: 'Carlos López', navegante: 'Ana Martínez', tiempo: '00:01:25.123', diferencia: null },
+                        { auto: 4, piloto: 'Pedro Ramírez', navegante: 'Carmen Díaz', tiempo: '00:01:30.234', diferencia: '+00:00:05.111' }
+                    ],
+                    'Prueba 2': [
+                        { auto: 2, piloto: 'Carlos López', navegante: 'Ana Martínez', tiempo: '00:01:20.123', diferencia: null },
+                        { auto: 4, piloto: 'Pedro Ramírez', navegante: 'Carmen Díaz', tiempo: '00:01:28.012', diferencia: '+00:00:07.889' }
+                    ]
+                }
+            },
+            
+            clasificacionGeneral: {
+                'General': [
+                    { auto: 1, piloto: 'Juan Pérez', navegante: 'María García', tiempo: '00:02:45.912', diferencia: null, puntos: 25 },
+                    { auto: 2, piloto: 'Carlos López', navegante: 'Ana Martínez', tiempo: '00:02:45.246', diferencia: '-00:00:00.666', puntos: 20 },
+                    { auto: 3, piloto: 'Miguel Torres', navegante: 'Laura Sánchez', tiempo: '00:02:53.679', diferencia: '+00:00:07.767', puntos: 16 },
+                    { auto: 4, piloto: 'Pedro Ramírez', navegante: 'Carmen Díaz', tiempo: '00:02:58.246', diferencia: '+00:00:12.334', puntos: 13 },
+                    { auto: 5, piloto: 'Luis Fernández', navegante: 'Isabel Ruiz', tiempo: '00:03:02.912', diferencia: '+00:00:17.000', puntos: 11 }
+                ],
+                'Clase 1': [
+                    { auto: 1, piloto: 'Juan Pérez', navegante: 'María García', tiempo: '00:02:45.912', diferencia: null, puntos: 25 },
+                    { auto: 3, piloto: 'Miguel Torres', navegante: 'Laura Sánchez', tiempo: '00:02:53.679', diferencia: '+00:00:07.767', puntos: 20 }
+                ],
+                'Clase 2': [
+                    { auto: 2, piloto: 'Carlos López', navegante: 'Ana Martínez', tiempo: '00:02:45.246', diferencia: null, puntos: 25 },
+                    { auto: 4, piloto: 'Pedro Ramírez', navegante: 'Carmen Díaz', tiempo: '00:02:58.246', diferencia: '+00:00:13.000', puntos: 20 }
+                ]
+            }
+        };
+
+        // Componente Header
+        const Header = ({ 
+            currentRally, 
+            onRallyChange, 
+            selectedPrueba, 
+            onPruebaChange, 
+            selectedDia, 
+            onDiaChange,
+            pruebas,
+            dias 
+        }) => {
+            return (
+                <header className="header fade-in">
+                    <div style={{maxWidth: '1280px', margin: '0 auto', padding: '0 16px'}}>
+                        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px', flexWrap: 'wrap', gap: '16px'}}>
+                            {/* Navegación izquierda */}
+                            <div style={{display: 'flex', alignItems: 'center', gap: '16px'}}>
+                                <button 
+                                    onClick={() => onRallyChange('prev')}
+                                    className="nav-button"
+                                    title="Rally anterior"
+                                >
+                                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                                <button 
+                                    onClick={() => onRallyChange('next')}
+                                    className="nav-button"
+                                    title="Rally siguiente"
+                                >
+                                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {/* Logo central */}
+                            <div style={{flex: '1', minWidth: '0'}}>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                                    <div style={{width: '40px', height: '40px', backgroundColor: '#1e40af', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: '0'}}>
+                                        <span style={{color: 'white', fontWeight: 'bold', fontSize: '18px'}}>R</span>
+                                    </div>
+                                    <div style={{minWidth: '0'}}>
+                                        <h1 style={{fontSize: '20px', fontWeight: 'bold', color: '#111827', margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{currentRally}</h1>
+                                        <p style={{fontSize: '14px', color: '#6b7280', margin: '0'}}>Dashboard de Tiempos</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Dropdowns derecha */}
+                            <div style={{display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap'}}>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                    <label style={{fontSize: '14px', fontWeight: '500', color: '#374151', display: window.innerWidth > 640 ? 'block' : 'none'}}>
+                                        Prueba:
+                                    </label>
+                                    <select
+                                        value={selectedPrueba}
+                                        onChange={(e) => onPruebaChange(e.target.value)}
+                                        className="select-input"
+                                    >
+                                        {pruebas.map(prueba => (
+                                            <option key={prueba} value={prueba}>{prueba}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                
+                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                    <label style={{fontSize: '14px', fontWeight: '500', color: '#374151', display: window.innerWidth > 640 ? 'block' : 'none'}}>
+                                        Día:
+                                    </label>
+                                    <select
+                                        value={selectedDia}
+                                        onChange={(e) => onDiaChange(e.target.value)}
+                                        className="select-input"
+                                    >
+                                        {dias.map(dia => (
+                                            <option key={dia} value={dia}>{dia}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+            );
+        };
+
+        // Componente CategoryButtons
+        const CategoryButtons = ({ categories, selectedCategory, onCategorySelect }) => {
+            return (
+                <div className="slide-up" style={{backgroundColor: 'white', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)', borderBottom: '1px solid #e5e7eb'}}>
+                    <div style={{maxWidth: '1280px', margin: '0 auto', padding: '16px'}}>
+                        <div style={{display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center'}}>
+                            {categories.map((category, index) => (
+                                <button
+                                    key={category}
+                                    onClick={() => onCategorySelect(category)}
+                                    className={`btn-category ${selectedCategory === category ? 'active' : ''}`}
+                                    style={{
+                                        opacity: 0,
+                                        animation: `fadeIn 0.3s ease-in-out ${index * 0.1}s forwards`
+                                    }}
+                                >
+                                    {category}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Componente ResultsTable
+        const ResultsTable = ({ title, data, type = 'prueba' }) => {
+            if (!data || data.length === 0) {
+                return (
+                    <div className="card fade-in" style={{padding: '24px'}}>
+                        <h3 style={{fontSize: '18px', fontWeight: '600', color: '#111827', marginBottom: '16px'}}>{title}</h3>
+                        <div style={{textAlign: 'center', color: '#6b7280', padding: '32px 0'}}>
+                            No hay datos disponibles
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="card slide-up">
+                    <div style={{padding: '24px', borderBottom: '1px solid #e5e7eb'}}>
+                        <h3 style={{fontSize: '18px', fontWeight: '600', color: '#111827', margin: '0'}}>{title}</h3>
+                    </div>
+                    
+                    <div style={{overflowX: 'auto'}}>
+                        <table className="table-rally">
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Auto</th>
+                                    <th>Piloto</th>
+                                    <th>Navegante</th>
+                                    {type === 'prueba' ? (
+                                        <>
+                                            <th>Tiempo</th>
+                                            <th>Diferencia</th>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <th>Tiempo Total</th>
+                                            <th>Diferencia</th>
+                                            <th>Puntos</th>
+                                        </>
+                                    )}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.map((item, index) => (
+                                    <tr
+                                        key={item.auto}
+                                        style={{
+                                            backgroundColor: index < 3 ? '#fefce8' : index % 2 === 0 ? '#fafafa' : 'white',
+                                            opacity: 0,
+                                            animation: `slideUp 0.3s ease-out ${index * 0.05}s forwards`
+                                        }}
+                                    >
+                                        <td style={{fontWeight: '600'}}>
+                                            <span 
+                                                className={`inline-flex items-center justify-center`}
+                                                style={{
+                                                    width: '32px',
+                                                    height: '32px',
+                                                    borderRadius: '50%',
+                                                    fontSize: '14px',
+                                                    ...(index === 0 ? {backgroundColor: '#fbbf24', color: 'white'} :
+                                                        index === 1 ? {backgroundColor: '#9ca3af', color: 'white'} :
+                                                        index === 2 ? {backgroundColor: '#ea580c', color: 'white'} :
+                                                        {backgroundColor: '#f3f4f6', color: '#374151'})
+                                                }}
+                                            >
+                                                {index + 1}
+                                            </span>
+                                        </td>
+                                        <td style={{fontWeight: '500', color: '#1e40af'}}>#{item.auto}</td>
+                                        <td>{item.piloto}</td>
+                                        <td>{item.navegante}</td>
+                                        <td style={{fontFamily: 'monospace', fontWeight: '600'}}>{item.tiempo}</td>
+                                        <td style={{color: item.diferencia ? '#dc2626' : '#6b7280'}}>
+                                            {item.diferencia || '-'}
+                                        </td>
+                                        {type === 'general' && (
+                                            <td style={{fontWeight: '600', color: '#1e40af'}}>
+                                                {item.puntos || 0}
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        // Componente principal App
+        const App = () => {
+            const [currentRallyIndex, setCurrentRallyIndex] = useState(0);
+            const [selectedPrueba, setSelectedPrueba] = useState('Prueba 1');
+            const [selectedDia, setSelectedDia] = useState('Día 1');
+            const [selectedCategory, setSelectedCategory] = useState('General');
+
+            const currentRally = mockData.rallies[currentRallyIndex];
+
+            // Función para manejar cambio de rally
+            const handleRallyChange = (direction) => {
+                if (direction === 'prev') {
+                    setCurrentRallyIndex(prev => 
+                        prev === 0 ? mockData.rallies.length - 1 : prev - 1
+                    );
+                } else {
+                    setCurrentRallyIndex(prev => 
+                        prev === mockData.rallies.length - 1 ? 0 : prev + 1
+                    );
+                }
+            };
+
+            // Obtener datos actuales basados en la selección
+            const getCurrentData = () => {
+                const categoriaData = mockData.resultados[selectedCategory];
+                const pruebaData = categoriaData?.[selectedPrueba] || [];
+                const generalData = mockData.clasificacionGeneral[selectedCategory] || [];
+                
+                return {
+                    prueba: pruebaData,
+                    general: generalData
+                };
+            };
+
+            const currentData = getCurrentData();
+
+            return (
+                <div style={{minHeight: '100vh', backgroundColor: '#f9fafb'}}>
+                    {/* Header */}
+                    <Header
+                        currentRally={currentRally}
+                        onRallyChange={handleRallyChange}
+                        selectedPrueba={selectedPrueba}
+                        onPruebaChange={setSelectedPrueba}
+                        selectedDia={selectedDia}
+                        onDiaChange={setSelectedDia}
+                        pruebas={mockData.pruebas}
+                        dias={mockData.dias}
+                    />
+
+                    {/* Botones de categorías */}
+                    <CategoryButtons
+                        categories={mockData.categorias}
+                        selectedCategory={selectedCategory}
+                        onCategorySelect={setSelectedCategory}
+                    />
+
+                    {/* Contenido principal */}
+                    <main style={{maxWidth: '1280px', margin: '0 auto', padding: '32px 16px'}}>
+                        <div 
+                            key={`${selectedCategory}-${selectedPrueba}`}
+                            className="fade-in"
+                            style={{display: 'grid', gridTemplateColumns: window.innerWidth > 1024 ? '1fr 1fr' : '1fr', gap: '32px'}}
+                        >
+                            {/* Columna izquierda - Tiempo por Prueba */}
+                            <ResultsTable
+                                title={`Tiempo ${selectedPrueba} de la ${selectedCategory}`}
+                                data={currentData.prueba}
+                                type="prueba"
+                            />
+
+                            {/* Columna derecha - Tiempos Generales */}
+                            <ResultsTable
+                                title={`Tiempos Generales de la ${selectedCategory}`}
+                                data={currentData.general}
+                                type="general"
+                            />
+                        </div>
+
+                        {/* Información adicional */}
+                        <div className="card fade-in" style={{marginTop: '32px', padding: '24px'}}>
+                            <h3 style={{fontSize: '18px', fontWeight: '600', color: '#111827', marginBottom: '16px'}}>Información del Rally</h3>
+                            <div style={{display: 'grid', gridTemplateColumns: window.innerWidth > 768 ? 'repeat(3, 1fr)' : '1fr', gap: '16px', fontSize: '14px'}}>
+                                <div>
+                                    <span style={{fontWeight: '500', color: '#374151'}}>Rally:</span>
+                                    <span style={{marginLeft: '8px', color: '#111827'}}>{currentRally}</span>
+                                </div>
+                                <div>
+                                    <span style={{fontWeight: '500', color: '#374151'}}>Prueba:</span>
+                                    <span style={{marginLeft: '8px', color: '#111827'}}>{selectedPrueba}</span>
+                                </div>
+                                <div>
+                                    <span style={{fontWeight: '500', color: '#374151'}}>Día:</span>
+                                    <span style={{marginLeft: '8px', color: '#111827'}}>{selectedDia}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        // Renderizar la aplicación
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
