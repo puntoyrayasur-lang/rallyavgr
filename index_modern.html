@@ -1,0 +1,1503 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rally Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JavaScript SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        rally: {
+                            primary: '#1e40af',
+                            secondary: '#3b82f6',
+                            accent: '#f59e0b',
+                            success: '#10b981',
+                            warning: '#f59e0b',
+                            danger: '#ef4444',
+                        }
+                    }
+                },
+            },
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f9fafb;
+            overflow-x: hidden;
+        }
+        
+        /* Mejorar scroll en móviles */
+        * {
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .btn-primary {
+            background-color: #1e40af;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .btn-primary:hover {
+            background-color: #1d4ed8;
+        }
+        
+        .btn-category {
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            margin: 4px;
+        }
+        
+        .btn-category.active {
+            background-color: #1e40af;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-category:not(.active) {
+            background-color: white;
+            color: #374151;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .btn-category:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .table-rally {
+            width: 100%;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            table-layout: fixed;
+        }
+        
+        /* Anchos específicos para columnas en desktop */
+        @media (min-width: 769px) {
+            .table-rally {
+                min-width: 600px;
+                max-width: 100%;
+            }
+            
+            .table-rally th:nth-child(1),
+            .table-rally td:nth-child(1) {
+                width: 50px; /* Pos */
+            }
+            
+            .table-rally th:nth-child(2),
+            .table-rally td:nth-child(2) {
+                width: 50px; /* Auto */
+            }
+            
+            .table-rally th:nth-child(3),
+            .table-rally td:nth-child(3) {
+                width: 100px; /* Piloto */
+            }
+            
+            .table-rally th:nth-child(4),
+            .table-rally td:nth-child(4) {
+                width: 100px; /* Navegante */
+            }
+            
+            .table-rally th:nth-child(5),
+            .table-rally td:nth-child(5) {
+                width: 70px; /* Clase */
+            }
+            
+            .table-rally th:nth-child(6),
+            .table-rally td:nth-child(6) {
+                width: 110px; /* Tiempo */
+            }
+            
+            .table-rally th:nth-child(7),
+            .table-rally td:nth-child(7) {
+                width: 110px; /* Diferencia */
+            }
+            
+            .table-rally th:nth-child(8),
+            .table-rally td:nth-child(8) {
+                width: 60px; /* Puntos */
+            }
+        }
+        
+        /* Scroll horizontal en móviles */
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            width: 100%;
+        }
+        
+        /* Asegurar que las tablas no se desborden en móviles */
+        @media (max-width: 768px) {
+            .table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                width: 100%;
+                max-width: 100vw;
+            }
+            
+            .card {
+                overflow: hidden;
+                max-width: 100%;
+            }
+        }
+        
+        /* Ajustar tablas para que quepan mejor */
+        @media (min-width: 769px) {
+            .table-container {
+                overflow-x: auto;
+                max-width: 100%;
+            }
+            
+            .card {
+                max-width: 100%;
+                overflow: hidden;
+            }
+        }
+        
+        .table-rally th {
+            background-color: #f9fafb;
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 600;
+            color: #111827;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .table-rally td {
+            padding: 12px 16px;
+            font-size: 14px;
+            color: #374151;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        
+        .table-rally tbody tr:hover {
+            background-color: #f9fafb;
+        }
+        
+        .table-rally tbody tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+        
+        .header {
+            background-color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e5e7eb;
+        }
+        
+        .nav-button {
+            padding: 8px;
+            border-radius: 8px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .nav-button:hover {
+            background-color: #f3f4f6;
+        }
+        
+        .select-input {
+            padding: 4px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            background-color: white;
+        }
+        
+        .select-input:focus {
+            outline: none;
+            border-color: #1e40af;
+            box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.2);
+        }
+        
+        .podium-1 { background-color: #fbbf24; color: white; }
+        .podium-2 { background-color: #9ca3af; color: white; }
+        .podium-3 { background-color: #ea580c; color: white; }
+        
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .slide-up {
+            animation: slideUp 0.3s ease-out;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(10px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #1e40af;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-container {
+            text-align: center;
+            padding: 40px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+        
+        .error-icon {
+            font-size: 3rem;
+            color: #ef4444;
+            margin-bottom: 16px;
+        }
+        
+        .error-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        
+        .error-message {
+            color: #6b7280;
+            margin-bottom: 24px;
+        }
+        
+        .retry-btn {
+            background-color: #1e40af;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .retry-btn:hover {
+            background-color: #1d4ed8;
+        }
+        
+        @media (max-width: 768px) {
+            .btn-category {
+                padding: 8px 16px;
+                font-size: 14px;
+                width: calc(50% - 8px);
+                margin: 4px;
+            }
+            
+            .table-rally {
+                min-width: 100%;
+                width: 100%;
+            }
+            
+            .table-rally th,
+            .table-rally td {
+                padding: 3px 1px;
+                font-size: 8px;
+                white-space: nowrap;
+            }
+            
+            .table-rally th:nth-child(1),
+            .table-rally td:nth-child(1) {
+                width: 25px;
+                min-width: 25px;
+            }
+            
+            .table-rally td:nth-child(1) span {
+                width: 20px;
+                height: 20px;
+                font-size: 7px;
+            }
+            
+            .table-rally th:nth-child(2),
+            .table-rally td:nth-child(2) {
+                width: 35px;
+                min-width: 35px;
+            }
+            
+            .table-rally th:nth-child(3),
+            .table-rally td:nth-child(3),
+            .table-rally th:nth-child(4),
+            .table-rally td:nth-child(4) {
+                width: 65px;
+                min-width: 65px;
+            }
+            
+            .table-rally th:nth-child(5),
+            .table-rally td:nth-child(5) {
+                width: 30px;
+                min-width: 30px;
+            }
+            
+            .table-rally td:nth-child(5) span {
+                padding: 1px 3px;
+                font-size: 6px;
+            }
+            
+            .table-rally th:nth-child(6),
+            .table-rally td:nth-child(6) {
+                width: 80px;
+                min-width: 80px;
+                text-align: right;
+                padding-right: 1px;
+                font-size: 11px;
+            }
+            
+            .table-rally th:nth-child(7),
+            .table-rally td:nth-child(7) {
+                width: 80px;
+                min-width: 80px;
+                text-align: right;
+                padding-right: 8px;
+                font-size: 11px;
+            }
+            
+            .table-rally th:nth-child(8),
+            .table-rally td:nth-child(8) {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .btn-category {
+                padding: 6px 12px;
+                font-size: 12px;
+                width: 100%;
+                margin: 2px 0;
+            }
+            
+            .table-rally th,
+            .table-rally td {
+                padding: 2px 1px;
+                font-size: 7px;
+            }
+            
+            .table-rally th:nth-child(1),
+            .table-rally td:nth-child(1) {
+                width: 20px;
+                min-width: 20px;
+            }
+            
+            .table-rally td:nth-child(1) span {
+                width: 16px;
+                height: 16px;
+                font-size: 6px;
+            }
+            
+            .table-rally th:nth-child(2),
+            .table-rally td:nth-child(2) {
+                width: 30px;
+                min-width: 30px;
+            }
+            
+            .table-rally th:nth-child(3),
+            .table-rally td:nth-child(3),
+            .table-rally th:nth-child(4),
+            .table-rally td:nth-child(4) {
+                width: 55px;
+                min-width: 55px;
+            }
+            
+            .table-rally th:nth-child(5),
+            .table-rally td:nth-child(5) {
+                width: 25px;
+                min-width: 25px;
+            }
+            
+            .table-rally td:nth-child(5) span {
+                padding: 1px 2px;
+                font-size: 5px;
+            }
+            
+            .table-rally th:nth-child(6),
+            .table-rally td:nth-child(6) {
+                width: 70px;
+                min-width: 70px;
+                text-align: right;
+                padding-right: 1px;
+                font-size: 10px;
+            }
+            
+            .table-rally th:nth-child(7),
+            .table-rally td:nth-child(7) {
+                width: 70px;
+                min-width: 70px;
+                text-align: right;
+                padding-right: 6px;
+                font-size: 10px;
+            }
+            
+            .table-rally th:nth-child(8),
+            .table-rally td:nth-child(8) {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        
+        // Supabase Configuration
+        const SUPABASE_URL = 'https://ymcfzcljdxtujgiaiqki.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltY2Z6Y2xqZHh0dWpnaWFpcWtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5NDYzOTIsImV4cCI6MjA3NTUyMjM5Mn0.BsjAqaqgC64tTzNvx1HZc1exWSZEs5znLFKl2Ucp8u4';
+        
+        // Inicializar cliente de Supabase
+        let supabase;
+        try {
+            if (window.supabase) {
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                console.log('✅ Cliente de Supabase inicializado correctamente');
+            }
+        } catch (error) {
+            console.error('❌ Error inicializando Supabase:', error);
+            supabase = null;
+        }
+        
+        // Componente Header
+        const Header = ({ 
+            currentRally, 
+            onRallyChange, 
+            selectedPrueba, 
+            onPruebaChange, 
+            selectedDia, 
+            onDiaChange,
+            pruebas,
+            dias 
+        }) => {
+            const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+            
+            useEffect(() => {
+                const handleResize = () => {
+                    setIsMobile(window.innerWidth <= 768);
+                };
+                window.addEventListener('resize', handleResize);
+                return () => window.removeEventListener('resize', handleResize);
+            }, []);
+            
+            return (
+                <header className="header fade-in">
+                    <div style={{maxWidth: '1280px', margin: '0 auto', padding: '0 16px'}}>
+                        {isMobile ? (
+                            // Layout móvil
+                            <div style={{padding: '12px 0'}}>
+                                {/* Logo y título */}
+                                <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px'}}>
+                                    <div style={{width: '32px', height: '32px', backgroundColor: '#1e40af', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: '0'}}>
+                                        <span style={{color: 'white', fontWeight: 'bold', fontSize: '14px'}}>R</span>
+                                    </div>
+                                    <div style={{minWidth: '0', flex: '1'}}>
+                                        <h1 style={{fontSize: '16px', fontWeight: 'bold', color: '#111827', margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{currentRally}</h1>
+                                        <p style={{fontSize: '12px', color: '#6b7280', margin: '0'}}>Dashboard de Tiempos</p>
+                                    </div>
+                                </div>
+                                
+                                {/* Controles */}
+                                <div style={{display: 'flex', gap: '12px', flexWrap: 'wrap'}}>
+                                    {/* Navegación */}
+                                    <div style={{display: 'flex', gap: '8px'}}>
+                                        <button 
+                                            onClick={() => onRallyChange('prev')}
+                                            className="nav-button"
+                                            title="Rally anterior"
+                                            style={{padding: '8px'}}
+                                        >
+                                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                            </svg>
+                                        </button>
+                                        <button 
+                                            onClick={() => onRallyChange('next')}
+                                            className="nav-button"
+                                            title="Rally siguiente"
+                                            style={{padding: '8px'}}
+                                        >
+                                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    
+                                    {/* Dropdowns */}
+                                    <div style={{display: 'flex', gap: '8px', flex: '1', minWidth: '0'}}>
+                                        <select
+                                            value={selectedPrueba}
+                                            onChange={(e) => onPruebaChange(e.target.value)}
+                                            className="select-input"
+                                            style={{flex: '1', minWidth: '0', fontSize: '12px'}}
+                                        >
+                                            {pruebas.map(prueba => (
+                                                <option key={prueba} value={prueba}>{prueba}</option>
+                                            ))}
+                                        </select>
+                                        
+                                        <select
+                                            value={selectedDia}
+                                            onChange={(e) => onDiaChange(e.target.value)}
+                                            className="select-input"
+                                            style={{flex: '1', minWidth: '0', fontSize: '12px'}}
+                                        >
+                                            {dias.map(dia => (
+                                                <option key={dia} value={dia}>{dia}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            // Layout desktop
+                        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px', flexWrap: 'wrap', gap: '16px'}}>
+                            {/* Navegación izquierda */}
+                            <div style={{display: 'flex', alignItems: 'center', gap: '16px'}}>
+                                <button 
+                                    onClick={() => onRallyChange('prev')}
+                                    className="nav-button"
+                                    title="Rally anterior"
+                                >
+                                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                                <button 
+                                    onClick={() => onRallyChange('next')}
+                                    className="nav-button"
+                                    title="Rally siguiente"
+                                >
+                                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </div>
+
+                            {/* Logo central */}
+                            <div style={{flex: '1', minWidth: '0'}}>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                                    <div style={{width: '40px', height: '40px', backgroundColor: '#1e40af', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: '0'}}>
+                                        <span style={{color: 'white', fontWeight: 'bold', fontSize: '18px'}}>R</span>
+                                    </div>
+                                    <div style={{minWidth: '0'}}>
+                                        <h1 style={{fontSize: '20px', fontWeight: 'bold', color: '#111827', margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{currentRally}</h1>
+                                        <p style={{fontSize: '14px', color: '#6b7280', margin: '0'}}>Dashboard de Tiempos</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Dropdowns derecha */}
+                            <div style={{display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap'}}>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                        <label style={{fontSize: '14px', fontWeight: '500', color: '#374151'}}>
+                                        Prueba:
+                                    </label>
+                                    <select
+                                        value={selectedPrueba}
+                                        onChange={(e) => onPruebaChange(e.target.value)}
+                                        className="select-input"
+                                    >
+                                        {pruebas.map(prueba => (
+                                            <option key={prueba} value={prueba}>{prueba}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                
+                                <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                                        <label style={{fontSize: '14px', fontWeight: '500', color: '#374151'}}>
+                                        Etapas:
+                                    </label>
+                                    <select
+                                        value={selectedDia}
+                                        onChange={(e) => onDiaChange(e.target.value)}
+                                        className="select-input"
+                                    >
+                                        {dias.map(dia => (
+                                            <option key={dia} value={dia}>{dia}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        )}
+                    </div>
+                </header>
+            );
+        };
+        
+        // Componente CategoryButtons
+        const CategoryButtons = ({ categories, selectedCategory, onCategorySelect }) => {
+            return (
+                <div className="slide-up" style={{backgroundColor: 'white', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)', borderBottom: '1px solid #e5e7eb'}}>
+                    <div style={{maxWidth: '1280px', margin: '0 auto', padding: '16px'}}>
+                        <div style={{display: 'flex', flexWrap: 'wrap', gap: '12px', justifyContent: 'center'}}>
+                            {categories.map((category, index) => (
+                                <button
+                                    key={category}
+                                    onClick={() => onCategorySelect(category)}
+                                    className={`btn-category ${selectedCategory === category ? 'active' : ''}`}
+                                    style={{
+                                        opacity: 0,
+                                        animation: `fadeIn 0.3s ease-in-out ${index * 0.1}s forwards`
+                                    }}
+                                >
+                                    {category}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        // Componente ResultsTable
+        const ResultsTable = ({ title, data, type = 'prueba' }) => {
+            if (!data || data.length === 0) {
+                return (
+                    <div className="card fade-in" style={{padding: '24px'}}>
+                        <h3 style={{fontSize: '18px', fontWeight: '600', color: '#111827', marginBottom: '16px'}}>{title}</h3>
+                        <div style={{textAlign: 'center', color: '#6b7280', padding: '32px 0'}}>
+                            No hay datos disponibles
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="card slide-up">
+                    <div style={{padding: '24px', borderBottom: '1px solid #e5e7eb'}}>
+                        <h3 style={{fontSize: '18px', fontWeight: '600', color: '#111827', margin: '0'}}>{title}</h3>
+                    </div>
+                    
+                    <div className="table-container">
+                        <table className="table-rally">
+                            <thead>
+                                <tr>
+                                    <th>Pos</th>
+                                    <th>Auto</th>
+                                    <th>Piloto</th>
+                                    <th>Navegante</th>
+                                    <th>Clase</th>
+                                    {type === 'prueba' ? (
+                                        <>
+                                            <th>Tiempo</th>
+                                            <th>Diferencia</th>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <th>Tiempo Total</th>
+                                            <th>Diferencia</th>
+                                            <th>Puntos</th>
+                                        </>
+                                    )}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {data.map((item, index) => (
+                                    <tr
+                                        key={item.numero || index}
+                                        style={{
+                                            backgroundColor: index < 3 ? '#fefce8' : index % 2 === 0 ? '#fafafa' : 'white',
+                                            opacity: 0,
+                                            animation: `slideUp 0.3s ease-out ${index * 0.05}s forwards`
+                                        }}
+                                    >
+                                        <td style={{fontWeight: '600'}}>
+                                            <span 
+                                                className={`inline-flex items-center justify-center`}
+                                                style={{
+                                                    width: window.innerWidth <= 768 ? (window.innerWidth <= 480 ? '16px' : '20px') : '32px',
+                                                    height: window.innerWidth <= 768 ? (window.innerWidth <= 480 ? '16px' : '20px') : '32px',
+                                                    borderRadius: '50%',
+                                                    fontSize: window.innerWidth <= 768 ? (window.innerWidth <= 480 ? '6px' : '7px') : '14px',
+                                                    ...(index === 0 ? {backgroundColor: '#fbbf24', color: 'white'} :
+                                                        index === 1 ? {backgroundColor: '#9ca3af', color: 'white'} :
+                                                        index === 2 ? {backgroundColor: '#ea580c', color: 'white'} :
+                                                        {backgroundColor: '#f3f4f6', color: '#374151'})
+                                                }}
+                                            >
+                                                {index + 1}
+                                            </span>
+                                        </td>
+                                        <td style={{fontWeight: '500', color: '#1e40af'}}>#{item.numero}</td>
+                                        <td>{item.piloto}</td>
+                                        <td>{item.copiloto}</td>
+                                        <td>
+                                            <span style={{
+                                                padding: window.innerWidth <= 768 ? (window.innerWidth <= 480 ? '1px 2px' : '1px 3px') : '2px 8px',
+                                                backgroundColor: '#dbeafe',
+                                                color: '#1e40af',
+                                                fontSize: window.innerWidth <= 768 ? (window.innerWidth <= 480 ? '5px' : '6px') : '12px',
+                                                fontWeight: '500',
+                                                borderRadius: '12px'
+                                            }}>
+                                                {item.clase}
+                                            </span>
+                                        </td>
+                                        <td style={{
+                                            fontFamily: 'monospace', 
+                                            fontWeight: '600',
+                                            textAlign: 'right',
+                                            paddingRight: '12px'
+                                        }}>{item.tiempo}</td>
+                                        <td style={{
+                                            color: item.diferencia ? '#dc2626' : '#6b7280',
+                                            fontWeight: '600',
+                                            textAlign: 'right',
+                                            paddingRight: '12px'
+                                        }}>
+                                            {item.diferencia || '-'}
+                                        </td>
+                                        {type === 'general' && (
+                                            <td style={{fontWeight: '600', color: '#1e40af'}}>
+                                                {item.puntos || 0}
+                                            </td>
+                                        )}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+        
+        // Componente principal App
+        const App = () => {
+            const [currentRallyIndex, setCurrentRallyIndex] = useState(0);
+            const [selectedPrueba, setSelectedPrueba] = useState('');
+            const [selectedDia, setSelectedDia] = useState('Etapa 1');
+            const [selectedCategory, setSelectedCategory] = useState('General');
+            const [tiemposData, setTiemposData] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [categorias, setCategorias] = useState(['General']);
+            const [dataLoaded, setDataLoaded] = useState(false);
+
+            const rallies = ['Rally San Martín 2024', 'Rally Cordoba 2024', 'Rally Mendoza 2024'];
+            
+            // Generar arrays de pruebas basándose en la etapa seleccionada
+            const getPruebasForEtapa = (etapa) => {
+                if (etapa === 'Etapa 1') {
+                    return ['Prueba 1', 'Prueba 2', 'Prueba 3', 'Prueba 4'];
+                } else if (etapa === 'Etapa 2') {
+                    return ['Prueba 5', 'Prueba 6', 'Prueba 7', 'Prueba 8'];
+                }
+                return ['Prueba 1', 'Prueba 2', 'Prueba 3', 'Prueba 4', 'Prueba 5', 'Prueba 6', 'Prueba 7', 'Prueba 8'];
+            };
+
+            // Función para encontrar pruebas reales que coincidan con el patrón de la etapa
+            const getPruebasRealesForEtapa = (etapa, datosBD) => {
+                if (!datosBD || datosBD.length === 0) return [];
+                
+                const pruebasBD = [...new Set(datosBD.map(item => item.prueba))];
+                console.log('📊 Pruebas reales en BD:', pruebasBD);
+                
+                if (etapa === 'Etapa 1') {
+                    // Buscar pruebas que contengan 1, 2, 3, 4
+                    return pruebasBD.filter(prueba => {
+                        const numero = parseInt(prueba.match(/\d+/)?.[0] || '0');
+                        return numero >= 1 && numero <= 4;
+                    }).sort((a, b) => {
+                        const numA = parseInt(a.match(/\d+/)?.[0] || '0');
+                        const numB = parseInt(b.match(/\d+/)?.[0] || '0');
+                        return numA - numB;
+                    });
+                } else if (etapa === 'Etapa 2') {
+                    // Buscar pruebas que contengan 5, 6, 7, 8
+                    return pruebasBD.filter(prueba => {
+                        const numero = parseInt(prueba.match(/\d+/)?.[0] || '0');
+                        return numero >= 5 && numero <= 8;
+                    }).sort((a, b) => {
+                        const numA = parseInt(a.match(/\d+/)?.[0] || '0');
+                        const numB = parseInt(b.match(/\d+/)?.[0] || '0');
+                        return numA - numB;
+                    });
+                }
+                return pruebasBD;
+            };
+            
+            // Usar pruebas reales de la BD si están disponibles, sino usar las por defecto
+            const pruebasReales = getPruebasRealesForEtapa(selectedDia, tiemposData);
+            const pruebas = pruebasReales.length > 0 ? pruebasReales : getPruebasForEtapa(selectedDia);
+            console.log('📊 Pruebas para', selectedDia, ':', pruebas);
+            
+            // Siempre mostrar Etapa 1 y Etapa 2 como opciones, independientemente de los datos de BD
+            const dias = ['Etapa 1', 'Etapa 2'];
+            
+            // Función para obtener clases reales desde Supabase y localStorage
+            const getRealClasses = async () => {
+                try {
+                    let todasLasClases = [];
+                    
+                    // Intentar obtener clases desde Supabase primero
+                    if (supabase) {
+                        try {
+                            const { data: pilotos, error } = await supabase
+                                .from('pilotos')
+                                .select('clase');
+                            
+                            if (!error && pilotos && pilotos.length > 0) {
+                                const clasesSupabase = [...new Set(pilotos.map(p => p.clase).filter(clase => clase))];
+                                todasLasClases = [...todasLasClases, ...clasesSupabase];
+                                console.log('📊 Clases desde Supabase pilotos:', clasesSupabase);
+                            }
+                        } catch (error) {
+                            console.warn('Error obteniendo clases de Supabase:', error);
+                        }
+                    }
+                    
+                    // Fallback a localStorage si no hay datos de Supabase
+                    if (todasLasClases.length === 0) {
+                    const autosInfo = JSON.parse(localStorage.getItem('autos_info') || '{}');
+                    const pilotosData = JSON.parse(localStorage.getItem('pilotos_data') || '{}');
+                    const rallyData = JSON.parse(localStorage.getItem('rally_data') || '{}');
+                    
+                    // De autos_info (datos del Excel subido desde admin)
+                    if (autosInfo && Object.keys(autosInfo).length > 0) {
+                        const clasesAutos = Object.values(autosInfo).map(auto => auto.clase).filter(clase => clase);
+                        todasLasClases = [...todasLasClases, ...clasesAutos];
+                            console.log('📊 Clases desde localStorage autos_info:', clasesAutos);
+                    }
+                    
+                    // De pilotos_data
+                    if (pilotosData && Object.keys(pilotosData).length > 0) {
+                        const clasesPilotos = Object.values(pilotosData).map(piloto => piloto.clase).filter(clase => clase);
+                        todasLasClases = [...todasLasClases, ...clasesPilotos];
+                    }
+                    
+                    // De rally_data
+                    if (rallyData && Object.keys(rallyData).length > 0) {
+                        const clasesRally = Object.values(rallyData).map(rally => rally.clase).filter(clase => clase);
+                        todasLasClases = [...todasLasClases, ...clasesRally];
+                        }
+                    }
+                    
+                    // También obtener clases de los datos de tiempos si no hay datos de pilotos
+                    if (todasLasClases.length === 0 && tiemposData && tiemposData.length > 0) {
+                        const clasesTiempos = [...new Set(tiemposData.map(item => item.clase).filter(clase => clase))];
+                        todasLasClases = [...todasLasClases, ...clasesTiempos];
+                        console.log('📊 Clases desde tiempos Supabase:', clasesTiempos);
+                    }
+                    
+                    // Eliminar duplicados y ordenar
+                    const clasesUnicas = [...new Set(todasLasClases)].sort();
+                    console.log('📊 Clases únicas encontradas:', clasesUnicas);
+                    
+                    if (clasesUnicas.length > 0) {
+                        return ['General', ...clasesUnicas];
+                    } else {
+                        return ['General', 'Inv.', 'RC5', 'A6']; // Default classes if none found
+                    }
+                } catch (error) {
+                    console.error('Error obteniendo clases:', error);
+                    return ['General', 'Inv.', 'RC5', 'A6']; // Default classes on error
+                }
+            };
+
+            const currentRally = rallies[currentRallyIndex];
+
+            // Cargar datos de Supabase
+            useEffect(() => {
+                const loadData = async () => {
+                    if (!supabase) {
+                        setError('Supabase no está disponible');
+                        setLoading(false);
+                        return;
+                    }
+
+                    try {
+                        setLoading(true);
+                        const { data: tiempos, error } = await supabase
+                            .from('tiempos_rally')
+                            .select('*');
+
+                        if (error) {
+                            throw error;
+                        }
+
+                        // Solo actualizar si hay datos nuevos o si no hay datos previos
+                        if (!dataLoaded || !tiemposData || tiemposData.length === 0 || JSON.stringify(tiempos) !== JSON.stringify(tiemposData)) {
+                            console.log('📊 Actualizando datos de Supabase');
+                            console.log('📊 Datos completos de Supabase:', tiempos);
+                            setTiemposData(tiempos || []);
+                            setDataLoaded(true);
+                            
+                            // Establecer valores por defecto basándose en los datos disponibles
+                            if (tiempos && tiempos.length > 0) {
+                                const pruebasDisponibles = [...new Set(tiempos.map(item => item.prueba))];
+                                const diasDisponibles = [...new Set(tiempos.map(item => item.dia))];
+                                
+                                console.log('📊 Pruebas encontradas en BD:', pruebasDisponibles);
+                                console.log('📊 Etapas encontradas en BD:', diasDisponibles);
+                                
+                                if (pruebasDisponibles.length > 0 && !selectedPrueba) {
+                                    // Establecer la primera prueba de la etapa actual usando datos reales
+                                    const pruebasEtapaActual = getPruebasRealesForEtapa(selectedDia, tiempos);
+                                    if (pruebasEtapaActual.length > 0) {
+                                        setSelectedPrueba(pruebasEtapaActual[0]);
+                                        console.log('📊 Prueba por defecto establecida para', selectedDia, ':', pruebasEtapaActual[0]);
+                                    } else {
+                                        // Fallback a las pruebas por defecto
+                                        const pruebasDefault = getPruebasForEtapa(selectedDia);
+                                        if (pruebasDefault.length > 0) {
+                                            setSelectedPrueba(pruebasDefault[0]);
+                                            console.log('📊 Prueba por defecto (fallback) para', selectedDia, ':', pruebasDefault[0]);
+                                        } else {
+                                            setSelectedPrueba(pruebasDisponibles[0]);
+                                            console.log('📊 Prueba por defecto establecida:', pruebasDisponibles[0]);
+                                        }
+                                    }
+                                }
+                                
+                                if (diasDisponibles.length > 0 && !selectedDia) {
+                                    setSelectedDia(diasDisponibles[0]);
+                                    console.log('📊 Etapa por defecto establecida:', diasDisponibles[0]);
+                                }
+                            }
+                        } else {
+                            console.log('📊 No hay cambios en los datos de Supabase, manteniendo datos actuales');
+                        }
+                        
+                        setError(null);
+                        
+                        // Actualizar categorías con las clases reales del Excel
+                        getRealClasses().then(nuevasCategorias => {
+                            if (Array.isArray(nuevasCategorias)) {
+                        setCategorias(nuevasCategorias);
+                            } else {
+                                setCategorias(['General']);
+                            }
+                        }).catch(error => {
+                            console.error('Error obteniendo categorías:', error);
+                            setCategorias(['General']);
+                        });
+                    } catch (err) {
+                        console.error('Error cargando datos:', err);
+                        setError(err.message);
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+
+                loadData();
+
+                // Auto-refresh every 60 seconds (reducido para evitar conflictos)
+                const interval = setInterval(loadData, 60000);
+
+                // Listener para detectar cambios en localStorage (cuando se sube nuevo Excel desde admin)
+                const handleStorageChange = (e) => {
+                    if (e.key === 'autos_info' || e.key === 'pilotos_data' || e.key === 'rally_data') {
+                        console.log('📊 Cambio detectado en localStorage:', e.key);
+                        getRealClasses().then(nuevasCategorias => {
+                            if (Array.isArray(nuevasCategorias)) {
+                        setCategorias(nuevasCategorias);
+                            }
+                        }).catch(error => {
+                            console.error('Error obteniendo categorías:', error);
+                        });
+                        // Solo forzar re-render si ya hay datos cargados
+                        if (dataLoaded) {
+                            setTiemposData(prevData => [...prevData]);
+                        }
+                    }
+                };
+
+                // Listener para cambios en la misma pestaña
+                const handleStorageChangeSameTab = () => {
+                    getRealClasses().then(nuevasCategorias => {
+                        if (Array.isArray(nuevasCategorias) && JSON.stringify(nuevasCategorias) !== JSON.stringify(categorias)) {
+                        console.log('📊 Categorías actualizadas desde localStorage');
+                        setCategorias(nuevasCategorias);
+                        // Solo forzar re-render si ya hay datos cargados
+                        if (dataLoaded) {
+                            setTiemposData(prevData => [...prevData]);
+                        }
+                    }
+                    }).catch(error => {
+                        console.error('Error obteniendo categorías:', error);
+                    });
+                };
+
+                window.addEventListener('storage', handleStorageChange);
+                
+                // También escuchar cambios en la misma pestaña cada 5 segundos (reducido para evitar conflictos)
+                const intervalCheck = setInterval(handleStorageChangeSameTab, 5000);
+
+                return () => {
+                    clearInterval(interval);
+                    clearInterval(intervalCheck);
+                    window.removeEventListener('storage', handleStorageChange);
+                };
+            }, []);
+
+            // Efecto para actualizar la prueba cuando cambie la etapa
+            useEffect(() => {
+                if (selectedDia && dataLoaded) {
+                    const pruebasEtapaActual = getPruebasRealesForEtapa(selectedDia, tiemposData);
+                    console.log('📊 Pruebas disponibles para', selectedDia, ':', pruebasEtapaActual);
+                    
+                    // Si la prueba actual no está en la nueva etapa, cambiar a la primera de la etapa
+                    if (!pruebasEtapaActual.includes(selectedPrueba)) {
+                        if (pruebasEtapaActual.length > 0) {
+                            setSelectedPrueba(pruebasEtapaActual[0]);
+                            console.log('📊 Prueba cambiada automáticamente a:', pruebasEtapaActual[0]);
+                        } else {
+                            // Fallback a las pruebas por defecto
+                            const pruebasDefault = getPruebasForEtapa(selectedDia);
+                            if (pruebasDefault.length > 0) {
+                                setSelectedPrueba(pruebasDefault[0]);
+                                console.log('📊 Prueba cambiada automáticamente (fallback) a:', pruebasDefault[0]);
+                            }
+                        }
+                    }
+                }
+            }, [selectedDia, dataLoaded, tiemposData]);
+
+            const handleRallyChange = (direction) => {
+                if (direction === 'next') {
+                    setCurrentRallyIndex(prev => (prev + 1) % rallies.length);
+                } else {
+                    setCurrentRallyIndex(prev => (prev - 1 + rallies.length) % rallies.length);
+                }
+            };
+
+            // Función para manejar el cambio de etapa
+            const handleDiaChange = (nuevaEtapa) => {
+                setSelectedDia(nuevaEtapa);
+                
+                // Cambiar automáticamente la prueba a la primera de la nueva etapa usando datos reales
+                const pruebasNuevaEtapa = getPruebasRealesForEtapa(nuevaEtapa, tiemposData);
+                if (pruebasNuevaEtapa.length > 0) {
+                    setSelectedPrueba(pruebasNuevaEtapa[0]);
+                    console.log('📊 Cambiando a etapa:', nuevaEtapa, 'Prueba seleccionada:', pruebasNuevaEtapa[0]);
+                } else {
+                    // Fallback a las pruebas por defecto
+                    const pruebasDefault = getPruebasForEtapa(nuevaEtapa);
+                    if (pruebasDefault.length > 0) {
+                        setSelectedPrueba(pruebasDefault[0]);
+                        console.log('📊 Cambiando a etapa (fallback):', nuevaEtapa, 'Prueba seleccionada:', pruebasDefault[0]);
+                    }
+                }
+            };
+
+            // Función para procesar los datos de tiempos y adaptarlos al formato necesario
+            const processTiemposData = async () => {
+                if (!tiemposData || tiemposData.length === 0) {
+                    return {
+                        pruebaData: [],
+                        generalData: []
+                    };
+                }
+
+                // Obtener datos de pilotos desde Supabase
+                let pilotosInfo = {};
+                try {
+                    if (supabase) {
+                        const { data: pilotos, error } = await supabase
+                            .from('pilotos')
+                            .select('*');
+                        
+                        if (!error && pilotos) {
+                            pilotos.forEach(piloto => {
+                                pilotosInfo[piloto.numero_auto] = {
+                                    piloto: piloto.piloto,
+                                    navegante: piloto.navegante,
+                                    clase: piloto.clase
+                                };
+                            });
+                            console.log('📊 Datos de pilotos desde Supabase:', pilotosInfo);
+                        } else {
+                            console.warn('Error obteniendo pilotos de Supabase:', error);
+                            // Fallback a localStorage si Supabase falla
+                            pilotosInfo = JSON.parse(localStorage.getItem('autos_info') || '{}');
+                            console.log('📊 Usando datos de pilotos desde localStorage (fallback):', pilotosInfo);
+                        }
+                    } else {
+                        // Fallback a localStorage si no hay Supabase
+                        pilotosInfo = JSON.parse(localStorage.getItem('autos_info') || '{}');
+                        console.log('📊 Usando datos de pilotos desde localStorage (sin Supabase):', pilotosInfo);
+                    }
+                } catch (error) {
+                    console.error('Error obteniendo datos de pilotos:', error);
+                    // Fallback a localStorage en caso de error
+                    pilotosInfo = JSON.parse(localStorage.getItem('autos_info') || '{}');
+                    console.log('📊 Usando datos de pilotos desde localStorage (error):', pilotosInfo);
+                }
+
+                // Agrupar por número de auto para calcular tiempos totales
+                const autosMap = new Map();
+                
+                tiemposData.forEach(item => {
+                    const key = item.numero_auto;
+                    if (!autosMap.has(key)) {
+                        // Usar datos de pilotos desde Supabase si están disponibles, sino usar datos de Supabase o fallback
+                        const autoInfo = pilotosInfo[key] || {};
+                        autosMap.set(key, {
+                            numero: item.numero_auto,
+                            piloto: autoInfo.piloto || item.piloto || `Piloto ${key}`,
+                            copiloto: autoInfo.navegante || item.copiloto || `Navegante ${key}`,
+                            auto: item.auto || `Auto ${key}`,
+                            clase: autoInfo.clase || item.clase || 'N4',
+                            tiempos: []
+                        });
+                    }
+                    autosMap.get(key).tiempos.push({
+                        prueba: item.prueba,
+                        tiempo: item.tiempo_transcurrido
+                    });
+                });
+
+                // Función para convertir tiempo a segundos
+                const tiempoASegundos = (tiempo) => {
+                    if (!tiempo) return 0;
+                    const parts = tiempo.split(':');
+                    if (parts.length === 3) {
+                        const [horas, minutos, segundos] = parts;
+                        return parseInt(horas) * 3600 + parseInt(minutos) * 60 + parseFloat(segundos);
+                    }
+                    return 0;
+                };
+
+                // Función para convertir segundos a tiempo
+                const segundosATiempo = (segundos) => {
+                    const horas = Math.floor(segundos / 3600);
+                    const minutos = Math.floor((segundos % 3600) / 60);
+                    const segs = (segundos % 60).toFixed(3);
+                    return `${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}:${segs.padStart(6, '0')}`;
+                };
+
+                // Filtrar por prueba y día seleccionados
+                console.log('📊 Filtrando datos por:', { selectedPrueba, selectedDia });
+                console.log('📊 Datos disponibles en tiemposData:', tiemposData.length);
+                console.log('📊 Pruebas disponibles:', [...new Set(tiemposData.map(item => item.prueba))]);
+                console.log('📊 Etapas disponibles en BD:', [...new Set(tiemposData.map(item => item.dia))]);
+                
+                // Mostrar todos los datos para depuración
+                console.log('📊 Todos los datos de la BD:', tiemposData.map(item => ({
+                    prueba: item.prueba,
+                    dia: item.dia,
+                    numero_auto: item.numero_auto,
+                    tiempo: item.tiempo_transcurrido
+                })));
+                
+                // Mapear las etapas seleccionadas a los valores reales de la BD
+                let etapaReal = selectedDia;
+                if (tiemposData && tiemposData.length > 0) {
+                    const etapasBD = [...new Set(tiemposData.map(item => item.dia))];
+                    if (selectedDia === 'Etapa 1' && etapasBD.length > 0) {
+                        etapaReal = etapasBD[0];
+                    } else if (selectedDia === 'Etapa 2' && etapasBD.length > 1) {
+                        etapaReal = etapasBD[1];
+                    }
+                }
+                
+                // Buscar datos que coincidan con la prueba seleccionada (búsqueda flexible)
+                let pruebaDataFiltrada = tiemposData.filter(item => {
+                    const coincidePrueba = item.prueba === selectedPrueba || 
+                                         item.prueba.includes(selectedPrueba) ||
+                                         selectedPrueba.includes(item.prueba);
+                    const coincideEtapa = item.dia === etapaReal;
+                    return coincidePrueba && coincideEtapa;
+                });
+                
+                console.log('📊 Datos filtrados para prueba específica:', pruebaDataFiltrada.length);
+                console.log('📊 Filtro aplicado:', { 
+                    prueba: selectedPrueba, 
+                    etapa: etapaReal,
+                    totalDatos: tiemposData.length,
+                    datosFiltrados: pruebaDataFiltrada.length
+                });
+                
+                // Si no encuentra datos con coincidencia exacta, buscar por número de prueba
+                if (pruebaDataFiltrada.length === 0) {
+                    const numeroPrueba = selectedPrueba.match(/\d+/)?.[0];
+                    if (numeroPrueba) {
+                        console.log('📊 Buscando por número de prueba:', numeroPrueba);
+                        pruebaDataFiltrada = tiemposData.filter(item => {
+                            const numeroItem = item.prueba.match(/\d+/)?.[0];
+                            return numeroItem === numeroPrueba && item.dia === etapaReal;
+                        });
+                        console.log('📊 Datos encontrados por número:', pruebaDataFiltrada.length);
+                    }
+                }
+                
+                // Si no hay datos para la prueba específica, mostrar información de depuración
+                if (pruebaDataFiltrada.length === 0) {
+                    console.log('📊 No hay datos para la prueba específica:', { selectedPrueba, etapaReal });
+                    
+                    // Mostrar qué datos están disponibles para esta etapa
+                    const datosEtapa = tiemposData.filter(item => item.dia === etapaReal);
+                    console.log('📊 Datos disponibles para la etapa:', datosEtapa.map(item => ({
+                        prueba: item.prueba,
+                        numero_auto: item.numero_auto,
+                        tiempo: item.tiempo_transcurrido
+                    })));
+                    
+                    // Si no hay datos para la etapa, mostrar TODOS los datos disponibles
+                    if (datosEtapa.length === 0) {
+                        console.log('📊 No hay datos para la etapa, mostrando TODOS los datos disponibles:');
+                        console.log('📊 Todos los datos:', tiemposData.map(item => ({
+                            prueba: item.prueba,
+                            dia: item.dia,
+                            numero_auto: item.numero_auto,
+                            tiempo: item.tiempo_transcurrido
+                        })));
+                        
+                        // Intentar usar todos los datos como fallback temporal
+                        console.log('📊 Usando todos los datos como fallback temporal');
+                        pruebaDataFiltrada = tiemposData.filter(item => {
+                            const numeroPrueba = selectedPrueba.match(/\d+/)?.[0];
+                            const numeroItem = item.prueba.match(/\d+/)?.[0];
+                            return numeroItem === numeroPrueba;
+                        });
+                        console.log('📊 Datos encontrados con fallback:', pruebaDataFiltrada.length);
+                    }
+                    
+                    if (pruebaDataFiltrada.length === 0) {
+                        console.log('📊 Manteniendo array vacío para mostrar "No hay datos disponibles"');
+                    }
+                }
+                
+                const pruebaData = pruebaDataFiltrada
+                    .map(item => {
+                        // Usar datos de pilotos desde Supabase si están disponibles, sino usar datos de Supabase o fallback
+                        const autoInfo = pilotosInfo[item.numero_auto] || {};
+                        return {
+                            numero: item.numero_auto,
+                            piloto: autoInfo.piloto || item.piloto || `Piloto ${item.numero_auto}`,
+                            copiloto: autoInfo.navegante || item.copiloto || `Navegante ${item.numero_auto}`,
+                            auto: item.auto || `Auto ${item.numero_auto}`,
+                            clase: autoInfo.clase || item.clase || 'N4',
+                            tiempo: item.tiempo_transcurrido,
+                            tiempoSegundos: tiempoASegundos(item.tiempo_transcurrido)
+                        };
+                    })
+                    .sort((a, b) => a.tiempoSegundos - b.tiempoSegundos);
+                
+                // Calcular diferencias solo si hay datos
+                if (pruebaData.length > 0) {
+                    const tiempoMasRapido = pruebaData[0].tiempoSegundos;
+                    pruebaData.forEach((item, index) => {
+                        item.diferencia = index === 0 ? '-' : `+${segundosATiempo(item.tiempoSegundos - tiempoMasRapido)}`;
+                    });
+                }
+
+                // Calcular tiempos generales (suma de todas las pruebas del 1 al 8)
+                console.log('📊 Calculando tiempos generales para todas las pruebas del 1 al 8');
+                
+                const generalArray = Array.from(autosMap.values()).map(auto => {
+                    // Sumar tiempos de todas las pruebas del 1 al 8
+                    const tiemposTodasPruebas = auto.tiempos.filter(t => {
+                        const numeroPrueba = parseInt(t.prueba.match(/\d+/)?.[0] || '0');
+                        return numeroPrueba >= 1 && numeroPrueba <= 8;
+                    });
+                    const tiempoTotal = tiemposTodasPruebas.reduce((total, t) => total + tiempoASegundos(t.tiempo), 0);
+                    const pruebasCompletadas = tiemposTodasPruebas.length;
+                    
+                    return {
+                        numero: auto.numero,
+                        piloto: auto.piloto,
+                        copiloto: auto.copiloto,
+                        auto: auto.auto,
+                        clase: auto.clase,
+                        tiempo: segundosATiempo(tiempoTotal),
+                        tiempoTotal: tiempoTotal,
+                        pruebasCompletadas: pruebasCompletadas
+                    };
+                }).filter(auto => auto.tiempoTotal > 0) // Solo incluir autos que tengan tiempos en las pruebas 1-8
+                .sort((a, b) => {
+                    // Primero ordenar por cantidad de pruebas completadas (mayor a menor)
+                    if (b.pruebasCompletadas !== a.pruebasCompletadas) {
+                        return b.pruebasCompletadas - a.pruebasCompletadas;
+                    }
+                    // Si tienen la misma cantidad de pruebas, ordenar por tiempo (menor a mayor)
+                    return a.tiempoTotal - b.tiempoTotal;
+                });
+                
+                // Calcular diferencias y puntos solo si hay datos
+                if (generalArray.length > 0) {
+                    const tiempoMasRapido = generalArray[0].tiempoTotal;
+                    generalArray.forEach((item, index) => {
+                        item.diferencia = index === 0 ? '-' : `+${segundosATiempo(item.tiempoTotal - tiempoMasRapido)}`;
+                        item.puntos = index === 0 ? 25 : index === 1 ? 18 : index === 2 ? 15 : Math.max(0, 12 - index);
+                    });
+                }
+
+                return {
+                    pruebaData: selectedCategory === 'General' ? pruebaData : pruebaData.filter(item => item.clase === selectedCategory),
+                    generalData: selectedCategory === 'General' ? generalArray : generalArray.filter(item => item.clase === selectedCategory)
+                };
+            };
+
+            const [currentData, setCurrentData] = useState({ pruebaData: [], generalData: [] });
+            
+            // Efecto para procesar datos cuando cambien
+            useEffect(() => {
+                const loadProcessedData = async () => {
+                    const data = await processTiemposData();
+                    setCurrentData(data);
+                };
+                loadProcessedData();
+            }, [tiemposData, selectedPrueba, selectedDia, selectedCategory]);
+            
+            // Log para depuración
+            console.log('📊 Datos procesados:', {
+                pruebaData: currentData.pruebaData,
+                generalData: currentData.generalData,
+                categorias: categorias,
+                selectedCategory: selectedCategory
+            });
+
+            if (loading) {
+                return (
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                        <div className="text-center">
+                            <div className="loading-spinner mx-auto mb-4"></div>
+                            <p className="text-gray-600">Cargando datos del rally...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (error) {
+                return (
+                    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+                        <div className="error-container">
+                            <div className="error-icon">⚠️</div>
+                            <div className="error-title">Error de Conexión</div>
+                            <div className="error-message">{error}</div>
+                            <button 
+                                className="retry-btn"
+                                onClick={() => window.location.reload()}
+                            >
+                                Reintentar
+                            </button>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div style={{minHeight: '100vh', backgroundColor: '#f9fafb'}}>
+                    {/* Header */}
+                    <Header
+                        currentRally={currentRally}
+                        onRallyChange={handleRallyChange}
+                        selectedPrueba={selectedPrueba}
+                        onPruebaChange={setSelectedPrueba}
+                        selectedDia={selectedDia}
+                        onDiaChange={handleDiaChange}
+                        pruebas={pruebas}
+                        dias={dias}
+                    />
+
+                    {/* Botones de categorías */}
+                    <CategoryButtons
+                        categories={Array.isArray(categorias) ? categorias : ['General']}
+                        selectedCategory={selectedCategory}
+                        onCategorySelect={setSelectedCategory}
+                    />
+
+                    {/* Contenido principal */}
+                    <main style={{maxWidth: '1400px', margin: '0 auto', padding: window.innerWidth <= 768 ? '16px 8px' : '32px 8px'}}>
+                        <div 
+                            key={`${selectedCategory}-${selectedPrueba}`}
+                            className="fade-in"
+                            style={{
+                                display: 'grid', 
+                                gridTemplateColumns: window.innerWidth > 1200 ? '1fr 1fr' : '1fr', 
+                                gap: window.innerWidth <= 768 ? '16px' : '24px',
+                                maxWidth: '100%',
+                                overflow: 'hidden'
+                            }}
+                        >
+                            {/* Columna izquierda - Tiempo por Prueba */}
+                            <ResultsTable
+                                title={`Tiempo ${selectedPrueba} de la ${selectedCategory}`}
+                                data={currentData.pruebaData}
+                                type="prueba"
+                            />
+
+                            {/* Columna derecha - Tiempos Generales */}
+                            <ResultsTable
+                                title={`Tiempos Generales de la ${selectedCategory}`}
+                                data={currentData.generalData}
+                                type="general"
+                            />
+                        </div>
+
+                        {/* Información adicional */}
+                        <div className="card fade-in" style={{marginTop: window.innerWidth <= 768 ? '16px' : '32px', padding: window.innerWidth <= 768 ? '16px' : '24px'}}>
+                            <h3 style={{fontSize: window.innerWidth <= 768 ? '16px' : '18px', fontWeight: '600', color: '#111827', marginBottom: '16px'}}>Información del Rally</h3>
+                            <div style={{
+                                display: 'grid', 
+                                gridTemplateColumns: window.innerWidth > 768 ? 'repeat(3, 1fr)' : '1fr', 
+                                gap: '16px', 
+                                fontSize: window.innerWidth <= 768 ? '12px' : '14px'
+                            }}>
+                                <div>
+                                    <span style={{fontWeight: '500', color: '#374151'}}>Rally:</span>
+                                    <span style={{marginLeft: '8px', color: '#111827'}}>{currentRally}</span>
+                                </div>
+                                <div>
+                                    <span style={{fontWeight: '500', color: '#374151'}}>Prueba:</span>
+                                    <span style={{marginLeft: '8px', color: '#111827'}}>{selectedPrueba}</span>
+                                </div>
+                                <div>
+                                    <span style={{fontWeight: '500', color: '#374151'}}>Etapa:</span>
+                                    <span style={{marginLeft: '8px', color: '#111827'}}>{selectedDia}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        // Renderizar la aplicación
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
