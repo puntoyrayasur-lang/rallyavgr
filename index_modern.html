@@ -500,7 +500,8 @@
         
         // Componente Header
         const Header = ({ 
-            currentRally, 
+            currentRally,
+            currentRallyData,
             onRallyChange, 
             selectedPrueba, 
             onPruebaChange, 
@@ -531,7 +532,21 @@
                                         <span style={{color: 'white', fontWeight: 'bold', fontSize: '14px'}}>R</span>
                                     </div>
                                     <div style={{minWidth: '0', flex: '1'}}>
-                                        <h1 style={{fontSize: '16px', fontWeight: 'bold', color: '#111827', margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{currentRally}</h1>
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
+                                            <h1 style={{fontSize: '16px', fontWeight: 'bold', color: '#111827', margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{currentRally}</h1>
+                                            {currentRallyData?.activo && (
+                                                <span style={{
+                                                    fontSize: '10px',
+                                                    padding: '2px 6px',
+                                                    background: '#10b981',
+                                                    color: 'white',
+                                                    borderRadius: '12px',
+                                                    fontWeight: '600'
+                                                }}>
+                                                    ACTIVO
+                                                </span>
+                                            )}
+                                        </div>
                                         <p style={{fontSize: '12px', color: '#6b7280', margin: '0'}}>Dashboard de Tiempos</p>
                                     </div>
                                 </div>
@@ -620,7 +635,21 @@
                                         <span style={{color: 'white', fontWeight: 'bold', fontSize: '18px'}}>R</span>
                                     </div>
                                     <div style={{minWidth: '0'}}>
-                                        <h1 style={{fontSize: '20px', fontWeight: 'bold', color: '#111827', margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{currentRally}</h1>
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
+                                            <h1 style={{fontSize: '20px', fontWeight: 'bold', color: '#111827', margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{currentRally}</h1>
+                                            {currentRallyData?.activo && (
+                                                <span style={{
+                                                    fontSize: '11px',
+                                                    padding: '2px 8px',
+                                                    background: '#10b981',
+                                                    color: 'white',
+                                                    borderRadius: '12px',
+                                                    fontWeight: '600'
+                                                }}>
+                                                    ACTIVO
+                                                </span>
+                                            )}
+                                        </div>
                                         <p style={{fontSize: '14px', color: '#6b7280', margin: '0'}}>Dashboard de Tiempos</p>
                                     </div>
                                 </div>
@@ -813,8 +842,47 @@
             const [error, setError] = useState(null);
             const [categorias, setCategorias] = useState(['General']);
             const [dataLoaded, setDataLoaded] = useState(false);
-
-            const rallies = ['Rally San Martín 2024', 'Rally Cordoba 2024', 'Rally Mendoza 2024'];
+            const [rallies, setRallies] = useState([]);
+            const [rallyActivo, setRallyActivo] = useState('');
+            
+            // Función para cargar rallyes desde Supabase
+            useEffect(() => {
+                const loadRallyes = async () => {
+                    try {
+                        if (!supabase) return;
+                        
+                        const { data, error } = await supabase
+                            .from('rallyes')
+                            .select('*')
+                            .order('created_at', { ascending: false });
+                        
+                        if (error) throw error;
+                        
+                        const rallyesOrdenados = (data || []).sort((a, b) => b.activo - a.activo);
+                        setRallies(rallyesOrdenados);
+                        
+                        // Establecer rally activo
+                        const activo = rallyesOrdenados.find(r => r.activo);
+                        if (activo) {
+                            setRallyActivo(activo.nombre);
+                        }
+                        
+                    } catch (error) {
+                        console.error('Error cargando rallyes:', error);
+                        // Fallback a datos estáticos
+                        setRallies([
+                            { nombre: 'Rally San Martín 2024', activo: true, foto_url: '' },
+                            { nombre: 'Rally Cordoba 2024', activo: false, foto_url: '' },
+                            { nombre: 'Rally Mendoza 2024', activo: false, foto_url: '' }
+                        ]);
+                        setRallyActivo('Rally San Martín 2024');
+                    }
+                };
+                
+                if (supabase) {
+                    loadRallyes();
+                }
+            }, [supabase]);
             
             // Generar arrays de pruebas basándose en la etapa seleccionada
             const getPruebasForEtapa = (etapa) => {
@@ -935,7 +1003,7 @@
                 }
             };
 
-            const currentRally = rallies[currentRallyIndex];
+            const currentRally = rallies.length > 0 && rallies[currentRallyIndex] ? rallies[currentRallyIndex].nombre : 'Cargando...';
 
             // Cargar datos de Supabase
             useEffect(() => {
@@ -948,20 +1016,36 @@
 
                     try {
                         setLoading(true);
-                        const { data: tiempos, error } = await supabase
+                        
+                        // Obtener nombre del rally seleccionado
+                        const rallySeleccionado = rallies[currentRallyIndex];
+                        const nombreRally = rallySeleccionado ? rallySeleccionado.nombre : rallyActivo;
+                        
+                        console.log('📊 Cargando datos para rally:', nombreRally);
+                        console.log('📊 Rally seleccionado:', rallySeleccionado);
+                        
+                        // Filtrar por nombre_rally - IMPORTANTE: Siempre filtrar por rally
+                        let query = supabase
                             .from('tiempos_rally')
                             .select('*');
+                        
+                        if (nombreRally) {
+                            query = query.eq('nombre_rally', nombreRally);
+                        }
+                        
+                        const { data: tiempos, error } = await query;
 
                         if (error) {
                             throw error;
                         }
 
-                        // Solo actualizar si hay datos nuevos o si no hay datos previos
-                        if (!dataLoaded || !tiemposData || tiemposData.length === 0 || JSON.stringify(tiempos) !== JSON.stringify(tiemposData)) {
-                            console.log('📊 Actualizando datos de Supabase');
-                            console.log('📊 Datos completos de Supabase:', tiempos);
-                            setTiemposData(tiempos || []);
-                            setDataLoaded(true);
+                        console.log('📊 Tiempos obtenidos de Supabase para', nombreRally, ':', tiempos?.length || 0);
+                        console.log('📊 Primeros 3 tiempos:', tiempos?.slice(0, 3));
+
+                        // SIEMPRE actualizar cuando cambia el rally (no comparar con datos anteriores)
+                        console.log('📊 Actualizando datos de Supabase para rally:', nombreRally);
+                        setTiemposData(tiempos || []);
+                        setDataLoaded(true);
                             
                             // Establecer valores por defecto basándose en los datos disponibles
                             if (tiempos && tiempos.length > 0) {
@@ -995,9 +1079,6 @@
                                     console.log('📊 Etapa por defecto establecida:', diasDisponibles[0]);
                                 }
                             }
-                        } else {
-                            console.log('📊 No hay cambios en los datos de Supabase, manteniendo datos actuales');
-                        }
                         
                         setError(null);
                         
@@ -1069,7 +1150,7 @@
                     clearInterval(intervalCheck);
                     window.removeEventListener('storage', handleStorageChange);
                 };
-            }, []);
+            }, [currentRallyIndex, rallies]); // Agregar dependencias para recargar cuando cambie el rally
 
             // Efecto para actualizar la prueba cuando cambie la etapa
             useEffect(() => {
@@ -1095,11 +1176,20 @@
             }, [selectedDia, dataLoaded, tiemposData]);
 
             const handleRallyChange = (direction) => {
+                console.log('🔄 Cambiando rally:', direction);
+                setDataLoaded(false); // Forzar recarga de datos
+                setSelectedPrueba(''); // Resetear prueba
+                setTiemposData([]); // Limpiar datos anteriores para evitar mezcla
+                
                 if (direction === 'next') {
                     setCurrentRallyIndex(prev => (prev + 1) % rallies.length);
                 } else {
                     setCurrentRallyIndex(prev => (prev - 1 + rallies.length) % rallies.length);
                 }
+                
+                console.log('📊 Nuevo índice de rally:', (direction === 'next' ? 
+                    (currentRallyIndex + 1) % rallies.length : 
+                    (currentRallyIndex - 1 + rallies.length) % rallies.length));
             };
 
             // Función para manejar el cambio de etapa
@@ -1124,6 +1214,49 @@
             // Función para procesar los datos de tiempos y adaptarlos al formato necesario
             const processTiemposData = async () => {
                 if (!tiemposData || tiemposData.length === 0) {
+                    return {
+                        pruebaData: [],
+                        generalData: []
+                    };
+                }
+
+                // Filtrar por rally actual como medida de seguridad adicional
+                const rallySeleccionado = rallies[currentRallyIndex];
+                const nombreRally = rallySeleccionado ? rallySeleccionado.nombre : rallyActivo;
+                const tiemposFiltradosPorRally = tiemposData.filter(item => {
+                    return item.nombre_rally === nombreRally;
+                });
+                
+                console.log('📊 Filtrado de seguridad - Rally:', nombreRally);
+                console.log('📊 Datos antes de filtrar:', tiemposData.length);
+                console.log('📊 Datos después de filtrar por rally:', tiemposFiltradosPorRally.length);
+                
+                // Eliminar duplicados: mantener solo el registro más rápido para cada auto/prueba/fecha
+                const sinDuplicados = new Map();
+                tiemposFiltradosPorRally.forEach(item => {
+                    // Solo incluir tiempos válidos (positivos o cero)
+                    const tiempoSegundos = parseFloat(item.tiempo_segundos) || 0;
+                    if (tiempoSegundos >= 0 && item.hora_largada && item.hora_llegada) {
+                        const key = `${item.numero_auto}_${item.prueba}_${item.fecha || ''}_${item.nombre_rally}`;
+                        const existente = sinDuplicados.get(key);
+                        
+                        // Si no existe o este es más rápido (o el existente es inválido), guardar este
+                        if (!existente || 
+                            tiempoSegundos < parseFloat(existente.tiempo_segundos || 999999) ||
+                            parseFloat(existente.tiempo_segundos || 999999) < 0) {
+                            sinDuplicados.set(key, item);
+                            if (existente) {
+                                console.log(`🔄 Duplicado removido para auto ${item.numero_auto}, prueba ${item.prueba}`);
+                            }
+                        }
+                    }
+                });
+                
+                const tiemposSinDuplicados = Array.from(sinDuplicados.values());
+                console.log('📊 Datos después de eliminar duplicados:', tiemposSinDuplicados.length);
+                
+                if (tiemposSinDuplicados.length === 0) {
+                    console.log('⚠️ No hay datos válidos para el rally seleccionado:', nombreRally);
                     return {
                         pruebaData: [],
                         generalData: []
@@ -1165,10 +1298,10 @@
                     console.log('📊 Usando datos de pilotos desde localStorage (error):', pilotosInfo);
                 }
 
-                // Agrupar por número de auto para calcular tiempos totales
+                // Agrupar por número de auto para calcular tiempos totales (usar datos sin duplicados)
                 const autosMap = new Map();
                 
-                tiemposData.forEach(item => {
+                tiemposSinDuplicados.forEach(item => {
                     const key = item.numero_auto;
                     if (!autosMap.has(key)) {
                         // Usar datos de pilotos desde Supabase si están disponibles, sino usar datos de Supabase o fallback
@@ -1207,24 +1340,16 @@
                     return `${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}:${segs.padStart(6, '0')}`;
                 };
 
-                // Filtrar por prueba y día seleccionados
-                console.log('📊 Filtrando datos por:', { selectedPrueba, selectedDia });
-                console.log('📊 Datos disponibles en tiemposData:', tiemposData.length);
-                console.log('📊 Pruebas disponibles:', [...new Set(tiemposData.map(item => item.prueba))]);
-                console.log('📊 Etapas disponibles en BD:', [...new Set(tiemposData.map(item => item.dia))]);
-                
-                // Mostrar todos los datos para depuración
-                console.log('📊 Todos los datos de la BD:', tiemposData.map(item => ({
-                    prueba: item.prueba,
-                    dia: item.dia,
-                    numero_auto: item.numero_auto,
-                    tiempo: item.tiempo_transcurrido
-                })));
+                // Filtrar por prueba y día seleccionados (usar datos sin duplicados)
+                console.log('📊 Filtrando datos por:', { selectedPrueba, selectedDia, nombreRally });
+                console.log('📊 Datos disponibles sin duplicados:', tiemposSinDuplicados.length);
+                console.log('📊 Pruebas disponibles:', [...new Set(tiemposSinDuplicados.map(item => item.prueba))]);
+                console.log('📊 Etapas disponibles en BD:', [...new Set(tiemposSinDuplicados.map(item => item.dia))]);
                 
                 // Mapear las etapas seleccionadas a los valores reales de la BD
                 let etapaReal = selectedDia;
-                if (tiemposData && tiemposData.length > 0) {
-                    const etapasBD = [...new Set(tiemposData.map(item => item.dia))];
+                if (tiemposSinDuplicados && tiemposSinDuplicados.length > 0) {
+                    const etapasBD = [...new Set(tiemposSinDuplicados.map(item => item.dia))];
                     if (selectedDia === 'Etapa 1' && etapasBD.length > 0) {
                         etapaReal = etapasBD[0];
                     } else if (selectedDia === 'Etapa 2' && etapasBD.length > 1) {
@@ -1233,7 +1358,7 @@
                 }
                 
                 // Buscar datos que coincidan con la prueba seleccionada (búsqueda flexible)
-                let pruebaDataFiltrada = tiemposData.filter(item => {
+                let pruebaDataFiltrada = tiemposSinDuplicados.filter(item => {
                     const coincidePrueba = item.prueba === selectedPrueba || 
                                          item.prueba.includes(selectedPrueba) ||
                                          selectedPrueba.includes(item.prueba);
@@ -1245,7 +1370,8 @@
                 console.log('📊 Filtro aplicado:', { 
                     prueba: selectedPrueba, 
                     etapa: etapaReal,
-                    totalDatos: tiemposData.length,
+                    rally: nombreRally,
+                    totalDatos: tiemposSinDuplicados.length,
                     datosFiltrados: pruebaDataFiltrada.length
                 });
                 
@@ -1254,7 +1380,7 @@
                     const numeroPrueba = selectedPrueba.match(/\d+/)?.[0];
                     if (numeroPrueba) {
                         console.log('📊 Buscando por número de prueba:', numeroPrueba);
-                        pruebaDataFiltrada = tiemposData.filter(item => {
+                        pruebaDataFiltrada = tiemposSinDuplicados.filter(item => {
                             const numeroItem = item.prueba.match(/\d+/)?.[0];
                             return numeroItem === numeroPrueba && item.dia === etapaReal;
                         });
@@ -1267,7 +1393,7 @@
                     console.log('📊 No hay datos para la prueba específica:', { selectedPrueba, etapaReal });
                     
                     // Mostrar qué datos están disponibles para esta etapa
-                    const datosEtapa = tiemposData.filter(item => item.dia === etapaReal);
+                    const datosEtapa = tiemposSinDuplicados.filter(item => item.dia === etapaReal);
                     console.log('📊 Datos disponibles para la etapa:', datosEtapa.map(item => ({
                         prueba: item.prueba,
                         numero_auto: item.numero_auto,
@@ -1276,17 +1402,18 @@
                     
                     // Si no hay datos para la etapa, mostrar TODOS los datos disponibles
                     if (datosEtapa.length === 0) {
-                        console.log('📊 No hay datos para la etapa, mostrando TODOS los datos disponibles:');
-                        console.log('📊 Todos los datos:', tiemposData.map(item => ({
+                        console.log('📊 No hay datos para la etapa, mostrando TODOS los datos disponibles para este rally:');
+                        console.log('📊 Todos los datos del rally sin duplicados:', tiemposSinDuplicados.map(item => ({
                             prueba: item.prueba,
                             dia: item.dia,
                             numero_auto: item.numero_auto,
-                            tiempo: item.tiempo_transcurrido
+                            tiempo: item.tiempo_transcurrido,
+                            nombre_rally: item.nombre_rally
                         })));
                         
                         // Intentar usar todos los datos como fallback temporal
                         console.log('📊 Usando todos los datos como fallback temporal');
-                        pruebaDataFiltrada = tiemposData.filter(item => {
+                        pruebaDataFiltrada = tiemposSinDuplicados.filter(item => {
                             const numeroPrueba = selectedPrueba.match(/\d+/)?.[0];
                             const numeroItem = item.prueba.match(/\d+/)?.[0];
                             return numeroItem === numeroPrueba;
@@ -1423,6 +1550,7 @@
                     {/* Header */}
                     <Header
                         currentRally={currentRally}
+                        currentRallyData={rallies[currentRallyIndex]}
                         onRallyChange={handleRallyChange}
                         selectedPrueba={selectedPrueba}
                         onPruebaChange={setSelectedPrueba}
@@ -1431,6 +1559,22 @@
                         pruebas={pruebas}
                         dias={dias}
                     />
+
+                    {/* Foto del rally */}
+                    {rallies[currentRallyIndex]?.foto_url && (
+                        <div style={{margin: '0 auto 24px', maxWidth: '1280px', padding: '0 16px', textAlign: 'center'}}>
+                            <img 
+                                src={rallies[currentRallyIndex].foto_url} 
+                                alt={currentRally}
+                                style={{
+                                    maxWidth: '100%',
+                                    maxHeight: '300px',
+                                    borderRadius: '12px',
+                                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+                                }}
+                            />
+                        </div>
+                    )}
 
                     {/* Botones de categorías */}
                     <CategoryButtons

@@ -14,9 +14,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
-
-
-    <!-- Main Content -->
     <main class="main">
         <div class="container">
             <!-- Page Header -->
@@ -39,298 +36,374 @@
                     </div>
                 </div>
 
-                <!-- Sección de Carga de PDF -->
-                <div class="pdf-upload-section">
-                    <div class="section-header">
-                        <h4><i class="fas fa-file-upload"></i> Cargar Datos de Pilotos</h4>
-                        <p>Sube el PDF con la lista de participantes para actualizar los datos</p>
+                <!-- Gestión de Rallyes -->
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">
+                            <i class="fas fa-flag-checkered"></i>
+                            Gestión de Rallyes
+                        </h2>
+                        <p class="card-subtitle">Gestiona el rally activo y crea nuevos rallyes</p>
                     </div>
                     
-                    <div class="upload-container">
-                        <div class="upload-area" id="upload-area">
-                            <input type="file" id="excel-input" accept=".xlsx,.xls" style="display: none;">
-                            <div class="upload-content">
-                                <i class="fas fa-cloud-upload-alt"></i>
-                                <h4>Arrastra tu Excel aquí o haz clic para seleccionar</h4>
-                                <p>Formato esperado: Columnas con Nº, PILOTO, NAVEGANTE, CLASE</p>
-                            </div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">
+                                <i class="fas fa-trophy"></i> Rally Activo
+                            </label>
+                            <select id="rally-select" class="custom-select" style="width: 100%;">
+                                <option value="">Cargando...</option>
+                            </select>
                         </div>
                         
-                        <div class="upload-actions" id="upload-actions" style="display: none;">
-                            <button class="btn btn-primary" onclick="processExcel()">
-                                <i class="fas fa-cog"></i> Procesar Excel
+                        <div class="form-group">
+                            <label class="form-label">
+                                <i class="fas fa-edit"></i> Nombre del Rally
+                            </label>
+                            <input type="text" id="rally-nombre-input" class="form-control" placeholder="Nombre del rally">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                <i class="fas fa-image"></i> Foto del Rally
+                            </label>
+                            <input type="text" id="rally-foto-input" class="form-control" placeholder="URL de la imagen">
+                        </div>
+                    </div>
+                    
+                    <div class="btn-group" style="margin-top: 16px;">
+                        <button id="btn-actualizar-rally" class="btn btn-primary" style="flex: 1;">
+                            <i class="fas fa-save"></i> Guardar Cambios
+                        </button>
+                        <button id="btn-finalizar-rally" class="btn btn-warning">
+                            <i class="fas fa-flag-checkered"></i> Finalizar Rally
+                        </button>
+                    </div>
+                    
+                    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-color);">
+                        <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">
+                            <i class="fas fa-plus-circle"></i> Crear Nuevo Rally
+                        </h4>
+                        <div class="form-grid" style="margin-bottom: 12px;">
+                            <input type="text" id="new-rally-nombre" class="form-control" placeholder="Nombre del nuevo rally">
+                        </div>
+                        <div class="btn-group">
+                            <button id="btn-crear-rally" class="btn btn-success">
+                                <i class="fas fa-plus"></i> Crear Rally
                             </button>
-                            <button class="btn btn-secondary" onclick="clearUpload()">
-                                <i class="fas fa-times"></i> Cancelar
-                            </button>
                         </div>
-                        
-                        <div class="processing-status" id="processing-status" style="display: none;">
-                            <div class="status-content">
-                                <i class="fas fa-spinner fa-spin"></i>
-                                <span>Procesando PDF...</span>
-                            </div>
+                    </div>
+                    
+                    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-color);">
+                        <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px;">
+                            <i class="fas fa-history"></i> Rallyes Finalizados
+                        </h4>
+                        <div id="rallyes-finalizados" style="display: flex; flex-direction: column; gap: 8px;">
+                            <!-- Se cargarán dinámicamente -->
                         </div>
-                        
-                        <div class="preview-data" id="preview-data" style="display: none;">
-                            <h4><i class="fas fa-eye"></i> Vista Previa de Datos</h4>
-                            <div class="preview-table-container">
-                                <table class="preview-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Nº</th>
-                                            <th>Piloto</th>
-                                            <th>Navegante</th>
-                                            <th>Clase</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="preview-tbody">
-                                        <!-- Datos se cargarán aquí -->
-                                    </tbody>
-                                </table>
-                            </div>
-                            <div class="preview-actions">
-                                <button class="btn btn-success" onclick="saveToDatabase()">
-                                    <i class="fas fa-save"></i> Guardar Datos
-                                </button>
-                                <button class="btn btn-info" onclick="testLocalStorage()">
-                                    <i class="fas fa-test-tube"></i> Probar localStorage
-                                </button>
-                                <button class="btn btn-warning" onclick="saveDataWithRealNumbers()">
-                                    <i class="fas fa-database"></i> Guardar con Números Reales
-                                </button>
-                                <button class="btn btn-info" onclick="checkDatabaseNumbers()" style="background: #17a2b8; border-color: #17a2b8;">
-                                    <i class="fas fa-search"></i> Verificar BD
-                                </button>
-                                <button class="btn btn-warning" onclick="compareExcelWithDatabase()" style="background: #ffc107; border-color: #ffc107;">
-                                    <i class="fas fa-balance-scale"></i> Comparar
-                                </button>
-                                <button class="btn btn-danger" onclick="clearAllData()">
-                                    <i class="fas fa-trash"></i> Limpiar Todo
-                                </button>
-                                <button class="btn btn-secondary" onclick="clearUpload()">
-                                    <i class="fas fa-times"></i> Cancelar
-                                </button>
-                            </div>
+                    </div>
+                </div>
+
+        <!-- Cargar Datos de Pilotos -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-file-upload"></i>
+                    Cargar Datos de Pilotos
+                </h2>
+                <p class="card-subtitle">Sube el Excel con la lista de participantes</p>
+            </div>
+            
+            <div class="upload-area" id="upload-area">
+                <input type="file" id="excel-input" accept=".xlsx,.xls" style="display: none;">
+                <div class="upload-content">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <h4>Arrastra tu Excel aquí o haz clic para seleccionar</h4>
+                    <p>Formato: Nº, PILOTO, NAVEGANTE, CLASE</p>
+                </div>
+            </div>
+            
+            <div id="upload-actions" style="display: none; margin-top: 16px;" class="btn-group">
+                <button onclick="processExcel()" class="btn btn-primary">
+                    <i class="fas fa-cog"></i> Procesar Excel
+                </button>
+                <button onclick="clearUpload()" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> Cancelar
+                </button>
+            </div>
+            
+            <div id="processing-status" style="display: none; margin-top: 16px; text-align: center; color: var(--text-muted);">
+                <i class="fas fa-spinner fa-spin" style="margin-right: 8px;"></i>
+                Procesando Excel...
+            </div>
+            
+            <div id="preview-data" style="display: none; margin-top: 24px;">
+                <h4 class="card-title" style="font-size: 16px;">
+                    <i class="fas fa-eye"></i>
+                    Vista Previa
+                </h4>
+                <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px;">
+                    <table class="preview-table">
+                        <thead>
+                            <tr>
+                                <th>Nº</th>
+                                <th>Piloto</th>
+                                <th>Navegante</th>
+                                <th>Clase</th>
+                            </tr>
+                        </thead>
+                        <tbody id="preview-tbody">
+                            <!-- Datos se cargarán aquí -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="btn-group" style="margin-top: 16px;">
+                    <button onclick="saveToDatabase()" class="btn btn-success">
+                        <i class="fas fa-save"></i> Guardar
+                    </button>
+                    <button onclick="clearUpload()" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancelar
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modificación de Tiempos -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">
+                    <i class="fas fa-clock"></i>
+                    Modificar Tiempos
+                </h2>
+                <p class="card-subtitle">Ajusta los tiempos de los pilotos agregando o restando tiempo</p>
+            </div>
+            
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="pilot-select" class="form-label">
+                        <i class="fas fa-user"></i>Piloto
+                    </label>
+                    <div class="custom-select">
+                        <select id="pilot-select" onchange="loadPilotTimes()">
+                            <option value="">Seleccionar piloto...</option>
+                        </select>
+                        <div class="select-arrow">
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="prueba-select" class="form-label">
+                        <i class="fas fa-flag"></i>Prueba
+                    </label>
+                    <div class="custom-select">
+                        <select id="prueba-select" onchange="loadPilotTimes()">
+                            <option value="">Seleccionar prueba...</option>
+                        </select>
+                        <div class="select-arrow">
+                            <i class="fas fa-chevron-down"></i>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Sección de Modificación de Tiempos -->
-            <div class="bg-white rounded-lg shadow-md p-6 mt-6">
-                <div class="mb-6">
-                    <h3 class="text-2xl font-bold text-gray-800 mb-2">
-                        <i class="fas fa-clock text-blue-600"></i> Modificar Tiempos de Pilotos
-                    </h3>
-                    <p class="text-gray-600">Agrega o quita segundos/minutos a los tiempos de los pilotos</p>
+            
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label class="form-label">
+                    <i class="fas fa-stopwatch"></i>Ajuste de tiempo
+                </label>
+                <div class="time-inputs">
+                    <input type="number" id="minutes-input" min="-59" max="59" value="0" placeholder="00">
+                    <span>:</span>
+                    <input type="number" id="seconds-input" min="-59" max="59" value="0" placeholder="00">
+                    <span>.</span>
+                    <input type="number" id="milliseconds-input" min="0" max="99" value="0" placeholder="00">
                 </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Seleccionar Piloto -->
-                    <div class="control-group-modern">
-                        <label for="pilot-select" class="block text-sm font-semibold text-gray-700 mb-2">
-                            <i class="fas fa-user text-blue-600"></i> Seleccionar Piloto
-                        </label>
-                        <select id="pilot-select" onchange="loadPilotTimes()" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <option value="">Selecciona un piloto</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Seleccionar Prueba -->
-                    <div class="control-group-modern">
-                        <label for="prueba-select" class="block text-sm font-semibold text-gray-700 mb-2">
-                            <i class="fas fa-flag text-blue-600"></i> Prueba
-                        </label>
-                        <select id="prueba-select" onchange="loadPilotTimes()" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <option value="">Selecciona una prueba</option>
-                        </select>
-                    </div>
-                    
-                    <!-- Ajuste de Tiempo -->
-                    <div class="control-group-modern md:col-span-2">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            <i class="fas fa-plus-minus text-blue-600"></i> Ajuste de Tiempo
-                        </label>
-                        <div class="flex items-center gap-2">
-                            <input type="number" id="minutes-input" placeholder="Min" min="-59" max="59" value="0" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                            <span class="text-gray-600 font-bold">:</span>
-                            <input type="number" id="seconds-input" placeholder="Seg" min="-59" max="59" value="0" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                            <span class="text-gray-600 font-bold">.</span>
-                            <input type="number" id="milliseconds-input" placeholder="Ms" min="0" max="99" value="0" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-                    
-                    <!-- Operación -->
-                    <div class="control-group-modern md:col-span-2">
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">
-                            <i class="fas fa-calculator text-blue-600"></i> Operación
-                        </label>
-                        <div class="flex gap-4">
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" name="operation" value="add" checked class="text-blue-600 focus:ring-2 focus:ring-blue-500">
-                                <span class="flex items-center gap-2 px-4 py-2 border-2 border-blue-600 text-blue-600 rounded-lg">
-                                    <i class="fas fa-plus"></i> Sumar
-                                </span>
-                            </label>
-                            <label class="flex items-center gap-2 cursor-pointer">
-                                <input type="radio" name="operation" value="subtract" class="text-blue-600 focus:ring-2 focus:ring-blue-500">
-                                <span class="flex items-center gap-2 px-4 py-2 border-2 border-gray-300 text-gray-600 rounded-lg hover:border-blue-600 hover:text-blue-600">
-                                    <i class="fas fa-minus"></i> Restar
-                                </span>
-                            </label>
-                        </div>
-                    </div>
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 24px;">
+                <label class="form-label">
+                    <i class="fas fa-calculator"></i>Operación
+                </label>
+                <div class="radio-group">
+                    <label id="radio-add" class="radio-option active">
+                        <input type="radio" name="operation" value="add" checked style="display: none;">
+                        <i class="fas fa-plus radio-icon"></i>
+                        <span class="radio-text">Sumar</span>
+                    </label>
+                    <label id="radio-subtract" class="radio-option">
+                        <input type="radio" name="operation" value="subtract" style="display: none;">
+                        <i class="fas fa-minus radio-icon"></i>
+                        <span class="radio-text">Restar</span>
+                    </label>
                 </div>
-                
-                <!-- Tiempos -->
-                <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="bg-gray-50 rounded-lg p-4" id="current-time-display" style="display: none;">
-                        <h5 class="text-sm font-semibold text-gray-600 mb-2">
-                            <i class="fas fa-clock"></i> Tiempo Actual
+            </div>
+            
+            <div id="time-displays-container" style="display: none;">
+                <div class="time-display-container">
+                    <div id="current-time-display" class="time-display-box">
+                        <h5 class="time-display-label">
+                            <i class="fas fa-clock"></i>Tiempo Actual
                         </h5>
-                        <div class="text-2xl font-bold text-gray-800">
+                        <div class="time-display-value">
                             <span id="current-time">--:--.---</span>
                         </div>
                     </div>
                     
-                    <div class="bg-blue-50 rounded-lg p-4" id="preview-time-display" style="display: none;">
-                        <h5 class="text-sm font-semibold text-gray-600 mb-2">
-                            <i class="fas fa-eye"></i> Tiempo Resultante
+                    <div id="preview-time-display" class="time-display-box preview">
+                        <h5 class="time-display-label">
+                            <i class="fas fa-eye"></i>Tiempo Resultante
                         </h5>
-                        <div class="text-2xl font-bold text-blue-600">
+                        <div class="time-display-value">
                             <span id="preview-time">--:--.---</span>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Botones -->
-                <div class="flex gap-4 mt-6">
-                    <button onclick="applyTimeModification()" id="apply-btn" disabled class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="fas fa-save"></i> Actualizar Tiempo
-                    </button>
-                    <button onclick="resetTimeModifier()" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors">
-                        <i class="fas fa-undo"></i> Reiniciar
-                    </button>
+            </div>
+            
+            <div class="btn-group">
+                <button onclick="applyTimeModification()" id="apply-btn" disabled class="btn btn-primary" style="flex: 1;">
+                    <i class="fas fa-save"></i>Actualizar Tiempo
+                </button>
+                <button onclick="resetTimeModifier()" class="btn btn-secondary">
+                    <i class="fas fa-redo"></i>Reiniciar
+                </button>
+            </div>
+        </div>
+
+        <!-- Filtro y Resultados -->
+        <div class="card">
+            <div class="card-header">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 class="card-title" style="margin-bottom: 8px;">
+                            <i class="fas fa-flag"></i>
+                            Resultados por Pruebas
+                        </h2>
+                        <p class="card-subtitle" id="results-count-by-prueba">Selecciona una prueba para ver los resultados</p>
+                    </div>
+                    <span class="badge badge-admin">
+                        <i class="fas fa-sync-alt fa-spin"></i>Auto-actualización
+                    </span>
                 </div>
             </div>
-
-            <!-- Filtro de Pruebas -->
-            <div class="prueba-filter-section">
-                <div class="section-header">
-                    <h3><i class="fas fa-filter"></i> Filtrar Pruebas</h3>
-                    <p>Elige qué pruebas quieres ver</p>
-                </div>
-                
-                <div class="prueba-filter">
-                    <div class="prueba-dropdown">
-                        <label for="prueba-filter-select">
-                            <i class="fas fa-flag"></i> Mostrar:
+            
+            <div style="margin-bottom: 32px;">
+                <div class="filter-grid">
+                    <div class="form-group">
+                        <label for="prueba-filter-select" class="form-label">
+                            <i class="fas fa-filter"></i>Filtrar por prueba:
                         </label>
-                        <div class="custom-select">
-                            <select name="prueba-filter-select" id="prueba-filter-select" onchange="filterPruebas()">
-                                <option value="">Todas las pruebas</option>
-                            </select>
-                            <div class="select-arrow">
-                                <i class="fas fa-chevron-down"></i>
-                            </div>
-                        </div>
+                        <select id="prueba-filter-select" onchange="filterPruebas()">
+                            <option value="">Todas las pruebas</option>
+                        </select>
                     </div>
                     
-                    <div class="filter-actions">
-                        <button class="btn btn-secondary" onclick="showAllPruebas()">
-                            <i class="fas fa-eye"></i> Ver Todas
+                    <div class="filter-buttons">
+                        <button onclick="showAllPruebas()" class="btn btn-secondary">
+                            <i class="fas fa-eye"></i>Ver Todas
                         </button>
-                        <button class="btn btn-primary" onclick="showSelectedPrueba()">
-                            <i class="fas fa-search"></i> Ver Seleccionada
+                        <button onclick="showSelectedPrueba()" class="btn btn-primary">
+                            <i class="fas fa-search"></i>Ver Seleccionada
                         </button>
                     </div>
                 </div>
             </div>
-
-            <!-- Estadísticas -->
-            <div class="stats-section">
-                <div class="stats-cards">
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-list-ol"></i>
-                        </div>
-                        <div class="stat-content">
-                            <span class="stat-number" id="total-registros">-</span>
-                            <span class="stat-label">Total Registros</span>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-clock"></i>
-                        </div>
-                        <div class="stat-content">
-                            <span class="stat-number" id="promedio">-</span>
-                            <span class="stat-label">Tiempo Promedio</span>
-                        </div>
-                    </div>
-                    
-                    <div class="stat-card">
-                        <div class="stat-icon">
-                            <i class="fas fa-trophy"></i>
-                        </div>
-                        <div class="stat-content">
-                            <span class="stat-number" id="mejor">-</span>
-                            <span class="stat-label">Mejor Tiempo</span>
-                        </div>
-                    </div>
-                </div>
+            
+            <div id="pruebas-container">
+                <!-- Aquí se generarán las tablas por cada prueba -->
+                <p class="empty-state">
+                    <i class="fas fa-info-circle"></i>
+                    Selecciona una prueba arriba para ver los resultados
+                </p>
             </div>
-
-            <!-- Vista: Por Pruebas -->
-            <div class="results-section" id="results-by-prueba-section" style="display: none;">
-                <div class="results-header">
-                    <h3><i class="fas fa-layer-group"></i> Tiempos por Pruebas</h3>
-                    <div class="results-info">
-                        <span class="results-count" id="results-count-by-prueba">0 pruebas</span>
-                        <div class="auto-refresh">
-                            <i class="fas fa-sync-alt spinning"></i>
-                            <span>Auto-actualización</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div id="pruebas-container">
-                    <!-- Aquí se generarán las tablas por cada prueba -->
-                </div>
             </div>
         </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-info">
-                    <h4><i class="fas fa-flag-checkered"></i> AVGR</h4>
-                    <p>Panel de Administración</p>
-                </div>
-                <div class="footer-stats">
-                    <div class="stat">
-                        <i class="fas fa-shield-alt"></i>
-                        <span>Modo Administrador</span>
-                    </div>
-                    <div class="stat">
-                        <i class="fas fa-sync-alt"></i>
-                        <span>Auto-actualización</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </footer>
-
     <!-- Notification Container -->
     <div class="notification-container" id="notification-container"></div>
 
-    <!-- Los scripts de JavaScript se cargan al final -->
     
     <script src="static/js/main.js"></script>
     <script src="static/js/admin.js"></script>
+    
+    <script>
+        // Mejorar radio buttons
+        document.querySelectorAll('input[name="operation"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const addLabel = document.getElementById('radio-add');
+                const subtractLabel = document.getElementById('radio-subtract');
+                
+                if (addLabel && subtractLabel) {
+                    if (this.value === 'add') {
+                        addLabel.classList.add('active');
+                        subtractLabel.classList.remove('active');
+                    } else {
+                        subtractLabel.classList.add('active');
+                        addLabel.classList.remove('active');
+                    }
+                }
+            });
+        });
+
+        // Configurar event listeners después de que el DOM esté listo
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('=== Configurando event listeners ===');
+            
+            // Botón crear rally
+            const btnCrearRally = document.getElementById('btn-crear-rally');
+            if (btnCrearRally) {
+                btnCrearRally.addEventListener('click', function() {
+                    if (typeof window.crearRally === 'function') {
+                        window.crearRally();
+                    } else {
+                        console.error('crearRally no está disponible');
+                        alert('Error: La función crearRally no está disponible. Recarga la página.');
+                    }
+                });
+            }
+            
+            // Botón actualizar rally
+            const btnActualizarRally = document.getElementById('btn-actualizar-rally');
+            if (btnActualizarRally) {
+                btnActualizarRally.addEventListener('click', function() {
+                    if (typeof window.actualizarRally === 'function') {
+                        window.actualizarRally();
+                    }
+                });
+            }
+            
+            // Botón finalizar rally
+            const btnFinalizarRally = document.getElementById('btn-finalizar-rally');
+            if (btnFinalizarRally) {
+                btnFinalizarRally.addEventListener('click', function() {
+                    if (typeof window.finalizarRally === 'function') {
+                        window.finalizarRally();
+                    }
+                });
+            }
+        });
+
+        // Forzar carga de pilotos después de que todo esté listo
+        window.addEventListener('load', function() {
+            console.log('=== Página completamente cargada ===');
+            // Esperar un poco más y volver a intentar cargar pilotos
+            setTimeout(function() {
+                if (typeof loadPilotosData === 'function') {
+                    console.log('Llamando a loadPilotosData desde window.onload');
+                    loadPilotosData().catch(err => {
+                        console.error('Error en loadPilotosData:', err);
+                    });
+                }
+                if (typeof loadTiemposData === 'function') {
+                    console.log('Llamando a loadTiemposData desde window.onload');
+                    loadTiemposData().catch(err => {
+                        console.error('Error en loadTiemposData:', err);
+                    });
+                }
+            }, 1000);
+        });
+    </script>
 </body>
 </html>

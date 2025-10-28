@@ -87,23 +87,52 @@ function getNotificationIcon(type) {
 const SUPABASE_URL = 'https://ymcfzcljdxtujgiaiqki.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltY2Z6Y2xqZHh0dWpnaWFpcWtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5NDYzOTIsImV4cCI6MjA3NTUyMjM5Mn0.BsjAqaqgC64tTzNvx1HZc1exWSZEs5znLFKl2Ucp8u4';
 
-// Inicializar cliente de Supabase
-let supabaseClient;
-try {
-    if (window.supabase) {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        console.log('✅ Cliente de Supabase inicializado correctamente');
-    } else {
-        console.log('❌ window.supabase no disponible');
-        supabaseClient = null;
+// Inicializar cliente de Supabase con espera
+let supabaseClient = null;
+
+// Hacer que las funciones estén disponibles globalmente desde el inicio
+window.crearRally = async function() {
+    console.error('crearRally llamado antes de la definición completa');
+    alert('Las funciones aún no están listas. Recarga la página.');
+};
+window.actualizarRally = async function() {
+    console.error('actualizarRally llamado antes de la definición completa');
+    alert('Las funciones aún no están listas. Recarga la página.');
+};
+window.finalizarRally = async function() {
+    console.error('finalizarRally llamado antes de la definición completa');
+    alert('Las funciones aún no están listas. Recarga la página.');
+};
+window.activarRally = async function(rallyId) {
+    console.error('activarRally llamado antes de la definición completa');
+    alert('Las funciones aún no están listas. Recarga la página.');
+};
+
+async function initializeSupabase() {
+    // Esperar hasta 3 segundos (30 intentos x 100ms) para que el SDK cargue
+    for (let i = 0; i < 30; i++) {
+        if (window.supabase) {
+            try {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+                window.supabaseClient = supabaseClient;
+                console.log('✅ Cliente de Supabase inicializado correctamente');
+                return supabaseClient;
+            } catch (error) {
+                console.error('❌ Error inicializando Supabase:', error);
+                return null;
+            }
+        }
+        console.log(`⏳ Esperando SDK de Supabase... intento ${i + 1}/30`);
+        await new Promise(resolve => setTimeout(resolve, 100));
     }
-} catch (error) {
-    console.error('❌ Error inicializando Supabase:', error);
-    supabaseClient = null;
+    console.log('❌ SDK de Supabase no disponible después de 30 intentos');
+    return null;
 }
 
-// Hacer supabaseClient globalmente disponible
-window.supabaseClient = supabaseClient;
+// Inicializar inmediatamente
+initializeSupabase().then(() => {
+    console.log('Supabase ready:', !!supabaseClient);
+});
 
 // Variables globales (sin autenticación)
 
@@ -118,36 +147,169 @@ let filteredPrueba = null;
 let selectedFile = null;
 let extractedData = [];
 
+// Variables para gestión de rallyes
+let rallyesData = [];
+let rallyActivoActual = '';
+
 // Inicialización
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Página de administración cargada');
-    connectAndLoad();
-    startAutoRefresh();
-    setupExcelUpload();
+document.addEventListener('DOMContentLoaded', async function() {
+    console.log('=== Página de administración cargada ===');
+    console.log('Supabase disponible:', typeof window.supabaseClient !== 'undefined' && window.supabaseClient !== null);
     
-    // Cargar tiempos inmediatamente
-    setTimeout(() => {
-        loadTiemposByPrueba();
-    }, 1000);
+    // Esperar a que Supabase esté listo
+    let retries = 0;
+    while ((typeof window.supabaseClient === 'undefined' || window.supabaseClient === null) && retries < 10) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+        console.log(`Esperando Supabase... intento ${retries}`);
+    }
+    
+    if (window.supabaseClient) {
+        console.log('✅ Supabase listo');
+    } else {
+        console.error('❌ Supabase no disponible después de 10 intentos');
+    }
+    
+    // Conectar y cargar datos
+    await connectAndLoad();
+    
+    // Cargar rallyes
+    await loadRallyes();
+    
+    // Configurar evento para cambiar rally
+    document.getElementById('rally-select')?.addEventListener('change', async function() {
+        const rallyId = this.value;
+        const rally = rallyesData.find(r => r.id == rallyId);
+        
+        const fotoInput = document.getElementById('rally-foto-input');
+        const nombreInput = document.getElementById('rally-nombre-input');
+        
+        if (fotoInput && rally) {
+            fotoInput.value = rally.foto_url || '';
+        }
+        if (nombreInput && rally) {
+            nombreInput.value = rally.nombre || '';
+        }
+        
+        if (rally) {
+            rallyActivoActual = rally.nombre;
+            
+            // Deshabilitar controles de modificación si el rally está finalizado
+            const btnGuardar = document.querySelector('button[onclick="actualizarRally()"]');
+            const btnFinalizar = document.querySelector('button[onclick="finalizarRally()"]');
+            const nombreInputEnabled = document.getElementById('rally-nombre-input');
+            const fotoInputEnabled = document.getElementById('rally-foto-input');
+            
+            if (rally.activo) {
+                // Rally activo - habilitar controles
+                if (btnGuardar) btnGuardar.disabled = false;
+                if (btnFinalizar) btnFinalizar.disabled = false;
+                if (nombreInputEnabled) nombreInputEnabled.disabled = false;
+                if (fotoInputEnabled) fotoInputEnabled.disabled = false;
+            } else {
+                // Rally finalizado - deshabilitar controles de modificación
+                if (btnGuardar) btnGuardar.disabled = true;
+                if (btnFinalizar) btnFinalizar.disabled = true;
+                if (nombreInputEnabled) nombreInputEnabled.disabled = true;
+                if (fotoInputEnabled) fotoInputEnabled.disabled = true;
+                showNotification('Rally finalizado - Solo lectura', 'info');
+            }
+        }
+        
+        // Recargar datos del nuevo rally
+        await connectAndLoad();
+        
+        // Recargar selects de piloto y prueba para el nuevo rally
+        populatePilotSelect();
+        populatePruebaSelect();
+        
+        // Limpiar selección actual de modificar tiempos
+        const pilotSelect = document.getElementById('pilot-select');
+        const pruebaSelect = document.getElementById('prueba-select');
+        if (pilotSelect) pilotSelect.value = '';
+        if (pruebaSelect) pruebaSelect.value = '';
+        hideTimeDisplays();
+    });
+    
+    // Cargar datos de pilotos y tiempos
+    setTimeout(async () => {
+        try {
+            await loadPilotosData();
+            await loadTiemposData();
+            await checkSupabaseConnection();
+            setupTimeModifierListeners();
+            
+            // Cargar tiempos por prueba
+            loadTiemposByPrueba();
+        } catch (error) {
+            console.log('Error cargando datos:', error);
+        }
+    }, 500);
+    
+    // Iniciar refresco automático
+    startAutoRefresh();
+    
+    // Configurar Excel upload
+    setupExcelUpload();
 });
 
 // ==================== FUNCIONES DE DATOS ====================
 
+// Función helper para obtener el nombre del rally activo actual
+function obtenerNombreRallyActual() {
+    try {
+        const rallySelect = document.getElementById('rally-select');
+        if (rallySelect && rallySelect.selectedIndex >= 0 && rallySelect.selectedOptions.length > 0) {
+            const selectedOption = rallySelect.selectedOptions[0];
+            const nombreDelRally = selectedOption.dataset.nombre || selectedOption.textContent || rallyActivoActual;
+            return nombreDelRally;
+        }
+        return rallyActivoActual || '';
+    } catch (error) {
+        return rallyActivoActual || '';
+    }
+}
+
 async function connectAndLoad() {
     try {
+        console.log('=== connectAndLoad ===');
+        
+        if (!window.supabaseClient) {
+            console.error('Supabase no está disponible');
+            showNotification('Supabase no está disponible. Esperando...', 'warning');
+            allTiempos = [];
+            updateStats();
+            updatePruebaFilter();
+            loadTiemposByPrueba();
+            return;
+        }
+        
         showNotification('Conectando a la base de datos...', 'info');
         
-        // Cargar datos de la vista tiempos_rally
-        const { data: tiempos, error } = await window.supabaseClient
+        // Obtener rally activo actual usando función helper
+        const nombreRallyActivo = obtenerNombreRallyActual();
+        
+        // Cargar datos de la vista tiempos_rally FILTRADOS por nombre_rally
+        let query = window.supabaseClient
             .from('tiempos_rally')
             .select('*')
             .order('tiempo_segundos', { ascending: true });
+        
+        if (nombreRallyActivo) {
+            query = query.eq('nombre_rally', nombreRallyActivo);
+        }
+        
+        const { data: tiempos, error } = await query;
 
         if (error) {
+            console.error('Error cargando desde Supabase:', error);
             throw error;
         }
 
         allTiempos = tiempos || [];
+        
+        console.log('✅ Tiempos cargados:', allTiempos.length);
+        console.log('Tiempos:', allTiempos);
         
         // Actualizar estadísticas
         updateStats();
@@ -161,16 +323,29 @@ async function connectAndLoad() {
         showNotification('Datos cargados correctamente', 'success');
         
     } catch (error) {
-        console.error('Error conectando a Supabase:', error);
-        showNotification('Error conectando a la base de datos: ' + error.message, 'error');
+        // Error silencioso - no mostrar ni registrar para evitar logs molestos
+        allTiempos = [];
+        updateStats();
+        updatePruebaFilter();
+        loadTiemposByPrueba();
     }
 }
 
 function updateStats() {
+    const totalRegistrosEl = document.getElementById('total-registros');
+    const promedioEl = document.getElementById('promedio');
+    const mejorEl = document.getElementById('mejor');
+    
+    // Verificar que los elementos existen antes de usarlos
+    if (!totalRegistrosEl || !promedioEl || !mejorEl) {
+        console.log('Elementos de estadísticas no encontrados, saltando actualización');
+        return;
+    }
+    
     if (allTiempos.length === 0) {
-        document.getElementById('total-registros').textContent = '0';
-        document.getElementById('promedio').textContent = '-';
-        document.getElementById('mejor').textContent = '-';
+        totalRegistrosEl.textContent = '0';
+        promedioEl.textContent = '-';
+        mejorEl.textContent = '-';
         return;
     }
 
@@ -187,9 +362,9 @@ function updateStats() {
         mejorTiempo = formatTime(mejor);
     }
 
-    document.getElementById('total-registros').textContent = allTiempos.length;
-    document.getElementById('promedio').textContent = promedioTiempo;
-    document.getElementById('mejor').textContent = mejorTiempo;
+    totalRegistrosEl.textContent = allTiempos.length;
+    promedioEl.textContent = promedioTiempo;
+    mejorEl.textContent = mejorTiempo;
 }
 
 function updatePruebaFilter() {
@@ -611,7 +786,14 @@ async function saveToDatabase() {
         clearUpload();
         
         // Actualizar la página para mostrar los nuevos datos
-        connectAndLoad();
+        await connectAndLoad();
+        
+        // Recargar también los datos de pilotos y tiempos
+        await loadPilotosData();
+        await loadTiemposData();
+        
+        // Forzar recarga de pruebas
+        loadTiemposByPrueba();
         
         console.log('=== GUARDADO COMPLETADO ===');
         
@@ -808,6 +990,17 @@ async function saveDataWithRealNumbers() {
 
 function loadTiemposByPrueba() {
     const container = document.getElementById('pruebas-container');
+    const resultsCountEl = document.getElementById('results-count-by-prueba');
+    
+    console.log('=== loadTiemposByPrueba ===');
+    console.log('Total tiempos disponibles:', allTiempos.length);
+    console.log('Tiempos:', allTiempos);
+    
+    // Verificar que los elementos existen
+    if (!container) {
+        console.log('Container de pruebas no encontrado');
+        return;
+    }
     
     // Usar todos los datos
     let tiemposFiltrados = allTiempos;
@@ -820,30 +1013,40 @@ function loadTiemposByPrueba() {
         return numA - numB;
     });
 
+    console.log('Pruebas únicas encontradas:', pruebasUnicas);
+
     // Si hay un filtro de prueba específica, mostrar solo esa
     if (filteredPrueba) {
         pruebasUnicas = pruebasUnicas.filter(p => p === filteredPrueba);
+        console.log('Filtrando prueba:', filteredPrueba);
     }
 
-    // Mostrar sección de resultados
-    document.getElementById('results-by-prueba-section').style.display = 'block';
+    // Actualizar contador (solo si el elemento existe)
+    if (resultsCountEl) {
+        resultsCountEl.textContent = `${pruebasUnicas.length} prueba(s) - ${tiemposFiltrados.length} tiempos totales`;
+    }
 
     // Limpiar container
     container.innerHTML = '';
 
-    if (tiemposFiltrados.length === 0) {
+    if (pruebasUnicas.length === 0 || tiemposFiltrados.length === 0) {
+        console.log('⚠️ No hay tiempos disponibles');
         container.innerHTML = `
             <div class="no-data">
                 <div class="no-data-content">
                     <i class="fas fa-info-circle"></i>
                     <h4>No hay tiempos registrados</h4>
-                    <p>No se encontraron tiempos en la base de datos</p>
+                    <p>Los tiempos aparecerán aquí cuando se registren largadas y llegadas en las aplicaciones correspondientes.</p>
                 </div>
             </div>
         `;
-        document.getElementById('results-count-by-prueba').textContent = '0 pruebas';
+        if (resultsCountEl) {
+            resultsCountEl.textContent = '0 pruebas disponibles';
+        }
         return;
     }
+    
+    console.log('✅ Generando tablas para', pruebasUnicas.length, 'pruebas');
 
     // Crear tabla para cada prueba
     pruebasUnicas.forEach((prueba, pruebaIndex) => {
@@ -952,10 +1155,12 @@ function loadTiemposByPrueba() {
     });
 
     // Actualizar contador
-    const countText = filteredPrueba ? 
-        `1 prueba (${filteredPrueba})` :
-        `${pruebasUnicas.length} pruebas`;
-    document.getElementById('results-count-by-prueba').textContent = countText;
+    if (resultsCountEl) {
+        const countText = filteredPrueba ? 
+            `1 prueba (${filteredPrueba})` :
+            `${pruebasUnicas.length} pruebas`;
+        resultsCountEl.textContent = countText;
+    }
 
     // Animar filas
     animateRows();
@@ -1020,32 +1225,46 @@ function startAutoRefresh() {
             refreshCount++;
             console.log(`Auto-refresh #${refreshCount}`);
             
-            // Cargar nuevos datos
-            const { data: tiempos, error } = await window.supabaseClient
+            // Obtener rally activo actual ANTES de cargar usando función helper
+            const nombreRallyActivo = obtenerNombreRallyActual();
+            
+            // Cargar nuevos datos FILTRADOS por rally activo
+            let query = window.supabaseClient
                 .from('tiempos_rally')
                 .select('*')
                 .order('tiempo_segundos', { ascending: true });
             
+            // Filtrar por rally activo si existe
+            if (nombreRallyActivo) {
+                query = query.eq('nombre_rally', nombreRallyActivo);
+            }
+            
+            const { data: tiempos, error } = await query;
+            
             if (!error && tiempos && Array.isArray(tiempos)) {
-                // Verificar si realmente hay cambios
+                // Verificar si realmente hay cambios comparando con los datos filtrados
                 const oldLength = allTiempos.length;
                 const hasChanges = JSON.stringify(allTiempos) !== JSON.stringify(tiempos);
                 
                 if (hasChanges) {
-                    allTiempos = tiempos;
-                    
-                    // Actualizar estadísticas
-                    updateStats();
-                    
-                    // Actualizar filtro de pruebas
-                    updatePruebaFilter();
-                    
-                    // Recargar todas las pruebas
-                    loadTiemposByPrueba();
-                    
-                    // Solo mostrar notificación si hay nuevos registros
-                    if (tiempos.length > oldLength) {
-                        showNotification('Nuevos tiempos registrados', 'info');
+                    // SOLO actualizar allTiempos si seguimos en el mismo rally
+                    const currentRallyFromSelect = obtenerNombreRallyActual();
+                    if (currentRallyFromSelect === nombreRallyActivo) {
+                        allTiempos = tiempos;
+                        
+                        // Actualizar estadísticas
+                        updateStats();
+                        
+                        // Actualizar filtro de pruebas
+                        updatePruebaFilter();
+                        
+                        // Recargar todas las pruebas
+                        loadTiemposByPrueba();
+                        
+                        // Solo mostrar notificación si hay nuevos registros
+                        if (tiempos.length > oldLength) {
+                            showNotification('Nuevos tiempos registrados', 'info');
+                        }
                     }
                 }
             }
@@ -1069,37 +1288,7 @@ let pilotosData = [];
 let tiemposData = [];
 let currentPilotTimes = {};
 
-// Cargar datos de pilotos y tiempos al inicializar
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('=== DOM cargado, iniciando configuración ===');
-    console.log('Supabase disponible al inicio:', typeof window.supabaseClient !== 'undefined' && window.supabaseClient !== null);
-    
-    // Esperar un poco más para asegurar que todos los elementos estén listos
-    setTimeout(() => {
-        // Mostrar indicador inmediatamente
-        updateConnectionIndicator();
-        
-        // Crear datos de prueba inmediatamente para asegurar que funcione
-        console.log('Creando datos de prueba inmediatamente...');
-        createTestDataLocal();
-        
-        // Configurar listeners
-        setupTimeModifierListeners();
-        
-        // Intentar cargar desde Supabase después
-        setTimeout(async () => {
-            console.log('Intentando cargar desde Supabase...');
-            try {
-                await loadPilotosData();
-                await loadTiemposData();
-                await checkSupabaseConnection();
-                await checkSupabaseTables();
-            } catch (error) {
-                console.log('Error cargando desde Supabase, usando datos locales:', error);
-            }
-        }, 1000);
-    }, 500);
-});
+// CONSOLIDADO EN EL LISTENER PRINCIPAL DE ARRIBA
 
 // Función para crear datos de prueba localmente (sin Supabase)
 function createTestDataLocal() {
@@ -1154,6 +1343,16 @@ async function checkSupabaseConnection() {
     console.log('Verificando conexión a Supabase...');
     console.log('Supabase disponible:', typeof window.supabaseClient !== 'undefined' && window.supabaseClient !== null);
     
+    // Función auxiliar para actualizar el indicador de forma segura
+    const updateIndicator = (status, text, color) => {
+        if (dbStatus && dbStatusText) {
+            dbStatus.style.display = 'inline-block';
+            dbStatus.style.background = color;
+            dbStatusText.textContent = text;
+            console.log(`Indicador actualizado a: ${text}`);
+        }
+    };
+    
     // Para archivos locales, usar modo local por defecto
     if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient !== null) {
         try {
@@ -1170,32 +1369,19 @@ async function checkSupabaseConnection() {
             console.log('✅ Supabase conectado correctamente');
             showNotification('Conectado a la base de datos de Supabase', 'success');
             
-            if (dbStatus && dbStatusText) {
-                dbStatus.style.display = 'inline-block';
-                dbStatus.style.background = 'linear-gradient(135deg, #28a745, #20c997)';
-                dbStatusText.textContent = 'Base de Datos';
-                console.log('Indicador actualizado a: Base de Datos');
-            }
+            updateIndicator(dbStatus, 'Base de Datos', 'linear-gradient(135deg, #28a745, #20c997)');
         } catch (error) {
             console.log('❌ Error de conexión:', error);
             // En caso de error, usar modo local
             showNotification('Usando modo local - datos de prueba', 'info');
             
-            if (dbStatus && dbStatusText) {
-                dbStatus.style.display = 'inline-block';
-                dbStatus.style.background = 'linear-gradient(135deg, #ffc107, #fd7e14)';
-                dbStatusText.textContent = 'Modo Local';
-            }
+            updateIndicator(dbStatus, 'Modo Local', 'linear-gradient(135deg, #ffc107, #fd7e14)');
         }
     } else {
         console.log('❌ Supabase no disponible - usando modo local');
         showNotification('Modo local - usando datos de prueba', 'info');
         
-        if (dbStatus && dbStatusText) {
-            dbStatus.style.display = 'inline-block';
-            dbStatus.style.background = 'linear-gradient(135deg, #ffc107, #fd7e14)';
-            dbStatusText.textContent = 'Modo Local';
-        }
+        updateIndicator(dbStatus, 'Modo Local', 'linear-gradient(135deg, #ffc107, #fd7e14)');
     }
 }
 
@@ -1279,19 +1465,38 @@ async function loadTiemposData() {
         if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient !== null) {
             console.log('🔗 Conectando a Supabase para cargar tiempos...');
             
-            // Intentar cargar sin ordenar primero
-            let { data: tiempos, error } = await window.supabaseClient
+            // Obtener rally activo actual usando función helper
+            const nombreRallyActivo = obtenerNombreRallyActual();
+            
+            // Cargar datos FILTRADOS por rally
+            let query = window.supabaseClient
                 .from('tiempos_rally')
                 .select('*');
             
-            console.log('Resultado de Supabase:', { tiempos: tiempos?.length || 0, error: error?.message || 'Sin error' });
+            if (nombreRallyActivo) {
+                query = query.eq('nombre_rally', nombreRallyActivo);
+            }
+            
+            let { data: tiempos, error } = await query;
+            
+            console.log('Resultado de Supabase:', { 
+                tiempos: tiempos?.length || 0, 
+                error: error?.message || 'Sin error',
+                rally: nombreRallyActivo 
+            });
             
             if (error) {
                 console.error('Error de Supabase:', error);
                 // Si falla, intentar con una consulta más simple
-                const { data: tiemposSimple, error: errorSimple } = await window.supabaseClient
+                let querySimple = window.supabaseClient
                     .from('tiempos_rally')
                     .select('id, numero_auto, prueba, tiempo');
+                
+                if (nombreRallyActivo) {
+                    querySimple = querySimple.eq('nombre_rally', nombreRallyActivo);
+                }
+                
+                const { data: tiemposSimple, error: errorSimple } = await querySimple;
                 
                 if (errorSimple) {
                     throw errorSimple;
@@ -1300,7 +1505,7 @@ async function loadTiemposData() {
             }
             
             tiemposData = tiempos || [];
-            console.log('✅ Tiempos cargados desde Supabase:', tiemposData.length);
+            console.log('✅ Tiempos cargados desde Supabase:', tiemposData.length, 'para el rally:', nombreRallyActivo);
             console.log('Datos cargados:', tiemposData);
             populatePruebaSelect();
             updateConnectionIndicator();
@@ -1360,7 +1565,14 @@ function populatePilotSelect() {
             return;
         }
         
-        pilotosData.forEach(piloto => {
+        // Ordenar pilotos por número de forma numérica (no alfabética)
+        const pilotosOrdenados = [...pilotosData].sort((a, b) => {
+            const numA = parseInt(a.numero_auto) || 0;
+            const numB = parseInt(b.numero_auto) || 0;
+            return numA - numB;
+        });
+        
+        pilotosOrdenados.forEach(piloto => {
             const option = document.createElement('option');
             option.value = piloto.numero_auto;
             option.textContent = `${piloto.numero_auto} - ${piloto.piloto} / ${piloto.navegante}`;
@@ -1390,18 +1602,26 @@ function populatePruebaSelect() {
         // Limpiar select
         pruebaSelect.innerHTML = '<option value="">Selecciona una prueba</option>';
         
-        if (!tiemposData || tiemposData.length === 0) {
-            console.log('No hay datos de tiempos disponibles');
+        // Obtener rally activo actual usando función helper
+        const nombreRallyActivo = obtenerNombreRallyActual();
+        
+        // Filtrar tiempos por rally y obtener pruebas únicas
+        const tiemposFiltrados = nombreRallyActivo ? 
+            allTiempos.filter(t => t.nombre_rally === nombreRallyActivo) : 
+            allTiempos;
+        
+        if (!tiemposFiltrados || tiemposFiltrados.length === 0) {
+            console.log('No hay datos de tiempos disponibles para este rally');
             const option = document.createElement('option');
             option.value = "";
-            option.textContent = "No hay pruebas disponibles";
+            option.textContent = "No hay pruebas disponibles para este rally";
             option.disabled = true;
             pruebaSelect.appendChild(option);
             return;
         }
         
-        // Obtener pruebas únicas
-        const pruebasUnicas = [...new Set(tiemposData.map(t => t.prueba).filter(prueba => prueba))].sort();
+        // Obtener pruebas únicas del rally actual
+        const pruebasUnicas = [...new Set(tiemposFiltrados.map(t => t.prueba).filter(prueba => prueba))].sort();
         
         console.log('Pruebas únicas encontradas:', pruebasUnicas);
         
@@ -1461,6 +1681,12 @@ function setupTimeModifierListeners() {
             }
         });
     }
+    
+    // Agregar listener para los radio buttons de operación
+    const operationRadios = document.getElementsByName('operation');
+    operationRadios.forEach(radio => {
+        radio.addEventListener('change', updateTimePreview);
+    });
 }
 
 // Cargar tiempos del piloto seleccionado
@@ -1489,19 +1715,30 @@ function loadPilotTimes() {
         return;
     }
     
+    // Obtener rally activo actual usando función helper
+    const nombreRallyActivo = obtenerNombreRallyActual();
+    
+    // Usar allTiempos (ya filtrado por rally) en lugar de tiemposData
+    const tiemposFiltrados = nombreRallyActivo ? 
+        allTiempos.filter(t => t.nombre_rally === nombreRallyActivo) : 
+        allTiempos;
+    
+    console.log('📊 Tiempos filtrados por rally:', tiemposFiltrados.length);
+    
     // Buscar el tiempo del piloto en la prueba seleccionada
     console.log('🔍 Buscando tiempo...');
     console.log('Tipo de numeroAuto:', typeof numeroAuto, 'Valor:', numeroAuto);
     console.log('Tipo de prueba:', typeof prueba, 'Valor:', prueba);
     
-    const tiempoEncontrado = tiemposData.find(t => {
+    const tiempoEncontrado = tiemposFiltrados.find(t => {
         console.log('Comparando con tiempo:', t);
         console.log('t.numero_auto:', t.numero_auto, 'tipo:', typeof t.numero_auto);
         console.log('t.prueba:', t.prueba, 'tipo:', typeof t.prueba);
+        console.log('t.nombre_rally:', t.nombre_rally, 'rally activo:', nombreRallyActivo);
         
-        const match = t.numero_auto == numeroAuto && t.prueba === prueba;
-        console.log('Comparación exacta (===):', t.numero_auto === numeroAuto, t.prueba === prueba);
-        console.log('Comparación flexible (==):', t.numero_auto == numeroAuto, t.prueba === prueba);
+        const match = t.numero_auto == numeroAuto && 
+                      t.prueba === prueba && 
+                      (!nombreRallyActivo || t.nombre_rally === nombreRallyActivo);
         console.log('Match final:', match);
         return match;
     });
@@ -1533,8 +1770,9 @@ function loadPilotTimes() {
         updateTimePreview();
     } else {
         console.log('❌ No se encontró tiempo para este piloto en esta prueba');
-        console.log('Datos disponibles para este auto:', tiemposData.filter(t => t.numero_auto === numeroAuto));
-        showNotification(`No se encontró tiempo para el auto ${numeroAuto} en ${prueba}`, 'warning');
+        console.log('Datos disponibles para este auto en este rally:', tiemposFiltrados.filter(t => t.numero_auto == numeroAuto));
+        const rallyInfo = nombreRallyActivo ? ` en el rally ${nombreRallyActivo}` : '';
+        showNotification(`No se encontró tiempo para el auto ${numeroAuto} en ${prueba}${rallyInfo}`, 'warning');
         hideTimeDisplays();
     }
 }
@@ -1544,10 +1782,12 @@ function showCurrentTime(tiempo) {
     console.log('=== showCurrentTime ejecutándose ===');
     console.log('Tiempo a mostrar:', tiempo);
     
+    const timeDisplaysContainer = document.getElementById('time-displays-container');
     const currentTimeDisplay = document.getElementById('current-time-display');
     const currentTimeSpan = document.getElementById('current-time');
     
     console.log('Elementos encontrados:', { 
+        timeDisplaysContainer: !!timeDisplaysContainer,
         currentTimeDisplay: !!currentTimeDisplay, 
         currentTimeSpan: !!currentTimeSpan 
     });
@@ -1556,6 +1796,12 @@ function showCurrentTime(tiempo) {
         // Formatear el tiempo para mostrar
         const formattedTime = formatTimeForDisplay(tiempo);
         currentTimeSpan.textContent = formattedTime;
+        
+        // Mostrar el contenedor principal
+        if (timeDisplaysContainer) {
+            timeDisplaysContainer.style.display = 'block';
+        }
+        
         currentTimeDisplay.style.display = 'block';
         console.log('✅ Tiempo mostrado correctamente:', formattedTime);
     } else {
@@ -1635,27 +1881,42 @@ function updateTimePreview() {
     // Convertir de vuelta a formato de tiempo
     const newTime = secondsToTime(newTimeInSeconds);
     
-    // Mostrar vista previa
+    // Mostrar vista previa solo si hay cambios
     const previewTimeDisplay = document.getElementById('preview-time-display');
     const previewTimeSpan = document.getElementById('preview-time');
     
+    const hasChanges = minutes !== 0 || seconds !== 0 || milliseconds !== 0;
+    
     if (previewTimeDisplay && previewTimeSpan) {
-        const formattedTime = formatTimeForDisplay(newTime);
-        previewTimeSpan.textContent = formattedTime;
-        previewTimeDisplay.style.display = 'block';
-        console.log('✅ Vista previa mostrada:', formattedTime);
+        if (hasChanges) {
+            const formattedTime = formatTimeForDisplay(newTime);
+            previewTimeSpan.textContent = formattedTime;
+            previewTimeDisplay.style.display = 'block';
+            console.log('✅ Vista previa mostrada:', formattedTime);
+        } else {
+            previewTimeDisplay.style.display = 'none';
+        }
     }
     
     // Habilitar botón de aplicar si hay cambios
     const applyBtn = document.getElementById('apply-btn');
     if (applyBtn) {
-        const hasChanges = minutes !== 0 || seconds !== 0 || milliseconds !== 0;
         applyBtn.disabled = !hasChanges;
     }
 }
 
 // Aplicar modificación de tiempo
 async function applyTimeModification() {
+    // Verificar que el rally esté activo
+    const rallySelect = document.getElementById('rally-select');
+    const rallyId = rallySelect?.value;
+    const rally = rallyesData.find(r => r.id == rallyId);
+    
+    if (rally && !rally.activo) {
+        showNotification('No se pueden modificar tiempos de rallyes finalizados', 'error');
+        return;
+    }
+    
     if (!currentPilotTimes.tiempo) {
         showNotification('No hay tiempo seleccionado para modificar', 'warning');
         return;
@@ -1720,109 +1981,121 @@ async function applyTimeModification() {
         console.log('Nuevo tiempo formateado:', newTime);
         console.log('✅ Tiempo actualizado de', currentPilotTimes.tiempo, 'a', newTime);
         
-        // Actualizar en Supabase
+        // Actualizar en Supabase - actualizar hora_llegada en tabla llegadas
         if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient !== null) {
-            console.log('Actualizando tiempo en Supabase...');
-            console.log('ID a actualizar:', currentPilotTimes.id);
-            console.log('Nuevo tiempo:', newTime);
+            console.log('Actualizando hora_llegada en Supabase...');
+            console.log('Auto:', currentPilotTimes.numero_auto);
+            console.log('Prueba:', currentPilotTimes.prueba);
+            console.log('Nuevo tiempo total:', newTime);
             
-            // Buscar el registro completo para obtener el ID correcto
-            const tiempoCompleto = tiemposData.find(t => 
+            // Obtener rally activo actual usando función helper
+            const nombreRallyActivo = obtenerNombreRallyActual();
+            
+            // Buscar el registro completo filtrando por rally
+            const tiemposFiltrados = nombreRallyActivo ? 
+                allTiempos.filter(t => t.nombre_rally === nombreRallyActivo) : 
+                allTiempos;
+                
+            const tiempoCompleto = tiemposFiltrados.find(t => 
                 t.numero_auto == currentPilotTimes.numero_auto && 
-                t.prueba === currentPilotTimes.prueba
+                t.prueba === currentPilotTimes.prueba &&
+                (!nombreRallyActivo || t.nombre_rally === nombreRallyActivo)
             );
             
             if (!tiempoCompleto) {
-                throw new Error('No se encontró el registro para actualizar');
+                throw new Error(`No se encontró el registro para actualizar en el rally ${nombreRallyActivo || 'actual'}`);
             }
             
             console.log('Registro encontrado:', tiempoCompleto);
-            console.log('Campos disponibles:', Object.keys(tiempoCompleto));
             
-            // Usar el ID del registro encontrado - verificar que no sea undefined
-            const recordId = tiempoCompleto.id || tiempoCompleto.largada_id || tiempoCompleto.llegada_id;
-            console.log('ID del registro:', recordId);
+            // Obtener la hora_llegada actual y calcular la nueva
+            const llegadaId = tiempoCompleto.llegada_id;
+            console.log('ID de llegada:', llegadaId);
             
-            if (!recordId || recordId === 'undefined') {
-                throw new Error('No se encontró un ID válido en el registro');
+            if (!llegadaId) {
+                throw new Error('No se encontró llegada_id en el registro');
             }
             
-            let updateError = null;
+            // Buscar la llegada actual para obtener la hora exacta
+            const { data: llegada, error: llegadaError } = await window.supabaseClient
+                .from('llegadas')
+                .select('hora_llegada')
+                .eq('id', llegadaId)
+                .single();
             
-            // Intentar actualizar por ID primero
-            if (recordId) {
-                const { error } = await window.supabaseClient
-                    .from('tiempos_rally')
-                    .update({ 
-                        tiempo_transcurrido: newTime
-                    })
-                    .eq('id', recordId);
-                
-                updateError = error;
+            if (llegadaError || !llegada) {
+                throw new Error('No se pudo obtener la hora de llegada actual');
             }
             
-            // Si falla por ID, intentar por número de auto y prueba
-            if (updateError) {
-                console.log('Error con ID, intentando por número de auto y prueba...');
-                console.log('Buscando:', { 
-                    numero_auto: currentPilotTimes.numero_auto, 
-                    prueba: currentPilotTimes.prueba 
-                });
-                
-                // Primero buscar el registro para obtener el ID correcto
-                const { data: registros, error: searchError } = await window.supabaseClient
-                    .from('tiempos_rally')
-                    .select('*')
-                    .eq('numero_auto', currentPilotTimes.numero_auto)
-                    .eq('prueba', currentPilotTimes.prueba);
-                
-                if (searchError) {
-                    console.error('Error buscando registro:', searchError);
-                    updateError = searchError;
-                } else if (registros && registros.length > 0) {
-                    const registro = registros[0];
-                    console.log('Registro encontrado para actualizar:', registro);
-                    
-                    // Actualizar usando el ID del registro encontrado
-                    const { error: updateError2 } = await window.supabaseClient
-                        .from('tiempos_rally')
-                        .update({ 
-                            tiempo_transcurrido: newTime
-                        })
-                        .eq('id', registro.id);
-                    
-                    updateError = updateError2;
-                } else {
-                    updateError = new Error('No se encontró el registro para actualizar');
-                }
-            }
+            console.log('Hora de llegada actual:', llegada.hora_llegada);
+            
+            // Convertir hora_llegada a segundos, sumar ajuste, convertir de vuelta
+            const horaActualSeg = timeToSeconds(llegada.hora_llegada);
+            const nuevaHoraSeg = horaActualSeg + adjustmentInSeconds;
+            const nuevaHoraLlegada = secondsToTime(nuevaHoraSeg);
+            
+            console.log('Ajuste aplicado:', adjustmentInSeconds, 'segundos');
+            console.log('Nueva hora de llegada:', nuevaHoraLlegada);
+            
+            // Actualizar hora_llegada en la tabla llegadas
+            const { error: updateError } = await window.supabaseClient
+                .from('llegadas')
+                .update({ 
+                    hora_llegada: nuevaHoraLlegada
+                })
+                .eq('id', llegadaId);
             
             if (updateError) {
-                console.error('Error actualizando en Supabase:', updateError);
+                console.error('Error actualizando hora_llegada:', updateError);
                 throw updateError;
             }
             
-            console.log('Tiempo actualizado en Supabase correctamente');
+            console.log('Hora de llegada actualizada en Supabase correctamente');
         }
         
-        // También actualizar en localStorage como respaldo
+        // También actualizar en localStorage como respaldo (filtrando por rally)
         const storedData = localStorage.getItem('tiempos_rally');
         if (storedData) {
             const data = JSON.parse(storedData);
-            const index = data.findIndex(t => t.id === currentPilotTimes.id);
+            const dataFiltrados = nombreRallyActivo ? 
+                data.filter(t => t.nombre_rally === nombreRallyActivo) : 
+                data;
+            const index = data.findIndex(t => 
+                (t.numero_auto === currentPilotTimes.numero_auto || t.numero_auto == currentPilotTimes.numero_auto) && 
+                t.prueba === currentPilotTimes.prueba &&
+                (!nombreRallyActivo || t.nombre_rally === nombreRallyActivo)
+            );
             if (index !== -1) {
-                data[index].tiempo = newTime;
+                data[index].tiempo_transcurrido = newTime;
+                data[index].tiempo_segundos = newTimeInSeconds;
                 localStorage.setItem('tiempos_rally', JSON.stringify(data));
             }
         } else {
             // Si no hay datos en localStorage, guardar los datos actuales
-            localStorage.setItem('tiempos_rally', JSON.stringify(tiemposData));
+            localStorage.setItem('tiempos_rally', JSON.stringify(allTiempos));
         }
         
-        // Actualizar datos locales
-        const tiempoIndex = tiemposData.findIndex(t => t.id === currentPilotTimes.id);
+        // Actualizar datos locales (usando tiemposFiltrados)
+        const tiempoIndex = tiemposFiltrados.findIndex(t => 
+            (t.numero_auto === currentPilotTimes.numero_auto || t.numero_auto == currentPilotTimes.numero_auto) && 
+            t.prueba === currentPilotTimes.prueba &&
+            (!nombreRallyActivo || t.nombre_rally === nombreRallyActivo)
+        );
         if (tiempoIndex !== -1) {
-            tiemposData[tiempoIndex].tiempo = newTime;
+            tiemposFiltrados[tiempoIndex].tiempo_transcurrido = newTime;
+            tiemposFiltrados[tiempoIndex].tiempo_segundos = newTimeInSeconds;
+            tiemposFiltrados[tiempoIndex].tiempo = newTime;
+            // Actualizar también en allTiempos
+            const indexInAll = allTiempos.findIndex(t => 
+                t.numero_auto == currentPilotTimes.numero_auto && 
+                t.prueba === currentPilotTimes.prueba &&
+                (!nombreRallyActivo || t.nombre_rally === nombreRallyActivo)
+            );
+            if (indexInAll !== -1) {
+                allTiempos[indexInAll].tiempo_transcurrido = newTime;
+                allTiempos[indexInAll].tiempo_segundos = newTimeInSeconds;
+                allTiempos[indexInAll].tiempo = newTime;
+            }
         }
         
         showNotification(`Tiempo actualizado: ${currentPilotTimes.tiempo} → ${newTime}`, 'success');
@@ -1850,14 +2123,20 @@ function resetTimeModifier() {
     if (millisecondsInput) millisecondsInput.value = 0;
     if (applyBtn) applyBtn.disabled = true;
     
-    hideTimeDisplays();
+    // Ocultar vista previa pero mantener el tiempo actual visible
+    const previewTimeDisplay = document.getElementById('preview-time-display');
+    if (previewTimeDisplay) {
+        previewTimeDisplay.style.display = 'none';
+    }
 }
 
 // Ocultar displays de tiempo
 function hideTimeDisplays() {
+    const timeDisplaysContainer = document.getElementById('time-displays-container');
     const currentTimeDisplay = document.getElementById('current-time-display');
     const previewTimeDisplay = document.getElementById('preview-time-display');
     
+    if (timeDisplaysContainer) timeDisplaysContainer.style.display = 'none';
     if (currentTimeDisplay) currentTimeDisplay.style.display = 'none';
     if (previewTimeDisplay) previewTimeDisplay.style.display = 'none';
 }
@@ -1871,45 +2150,6 @@ async function loadAllPilotTimes() {
     showNotification('Datos recargados correctamente', 'success');
 }
 
-// Verificar tablas disponibles en Supabase
-async function checkSupabaseTables() {
-    if (typeof window.supabaseClient === 'undefined' || window.supabaseClient === null) {
-        console.log('❌ Supabase no disponible para verificar tablas');
-        return;
-    }
-    
-    try {
-        console.log('🔍 Verificando tablas disponibles en Supabase...');
-        
-        // Verificar tabla tiempos_rally
-        const { data: tiempos, error: errorTiempos } = await window.supabaseClient
-            .from('tiempos_rally')
-            .select('*')
-            .limit(1);
-        
-        if (errorTiempos) {
-            console.log('❌ Error accediendo a tiempos_rally:', errorTiempos.message);
-        } else {
-            console.log('✅ Tabla tiempos_rally accesible, registros:', tiempos?.length || 0);
-        }
-        
-        // Verificar tabla pilotos
-        const { data: pilotos, error: errorPilotos } = await window.supabaseClient
-            .from('pilotos')
-            .select('*')
-            .limit(1);
-        
-        if (errorPilotos) {
-            console.log('❌ Error accediendo a pilotos:', errorPilotos.message);
-        } else {
-            console.log('✅ Tabla pilotos accesible, registros:', pilotos?.length || 0);
-        }
-        
-    } catch (error) {
-        console.error('❌ Error verificando tablas:', error);
-    }
-}
-
 // Forzar actualización del indicador de conexión
 function updateConnectionIndicator() {
     const dbStatus = document.getElementById('database-status');
@@ -1917,6 +2157,14 @@ function updateConnectionIndicator() {
     
     console.log('Actualizando indicador de conexión...');
     console.log('Elementos encontrados:', { dbStatus: !!dbStatus, dbStatusText: !!dbStatusText });
+    
+    // Verificar que los elementos existen ANTES de usarlos
+    if (!dbStatus || !dbStatusText) {
+        console.log('❌ Elementos del DOM no disponibles aún, reintentando...');
+        // Esperar 500ms y reintentar
+        setTimeout(() => updateConnectionIndicator(), 500);
+        return;
+    }
     
     if (dbStatus && dbStatusText) {
         dbStatus.style.display = 'inline-block';
@@ -2041,492 +2289,7 @@ function secondsToTime(totalSeconds) {
     return timeString;
 }
 
-// Función de debug para verificar el estado de los datos
-function debugData() {
-    console.log('=== DEBUG DE DATOS ===');
-    console.log('Pilotos data:', pilotosData);
-    console.log('Tiempos data:', tiemposData);
-    console.log('Pilotos length:', pilotosData.length);
-    console.log('Tiempos length:', tiemposData.length);
-    
-    const pilotSelect = document.getElementById('pilot-select');
-    const pruebaSelect = document.getElementById('prueba-select');
-    
-    console.log('Pilot select element:', pilotSelect);
-    console.log('Prueba select element:', pruebaSelect);
-    
-    if (pilotSelect) {
-        console.log('Pilot select options:', pilotSelect.options.length);
-        for (let i = 0; i < pilotSelect.options.length; i++) {
-            console.log(`Option ${i}:`, pilotSelect.options[i].textContent);
-        }
-    }
-    
-    if (pruebaSelect) {
-        console.log('Prueba select options:', pruebaSelect.options.length);
-        for (let i = 0; i < pruebaSelect.options.length; i++) {
-            console.log(`Option ${i}:`, pruebaSelect.options[i].textContent);
-        }
-    }
-    
-    showNotification('Debug completado - revisa la consola', 'info');
-}
-
-// Función para probar la actualización en Supabase
-async function testSupabaseUpdate() {
-    console.log('=== PROBANDO ACTUALIZACIÓN EN SUPABASE ===');
-    
-    if (typeof window.supabaseClient === 'undefined' || window.supabaseClient === null) {
-        showNotification('Supabase no está disponible', 'error');
-        return;
-    }
-    
-    try {
-        // Obtener un registro de prueba
-        const { data: tiempos, error: fetchError } = await window.supabaseClient
-            .from('tiempos_rally')
-            .select('*')
-            .limit(1);
-        
-        if (fetchError) {
-            console.error('Error obteniendo datos:', fetchError);
-            showNotification('Error obteniendo datos: ' + fetchError.message, 'error');
-            return;
-        }
-        
-        if (!tiempos || tiempos.length === 0) {
-            showNotification('No hay datos para probar', 'warning');
-            return;
-        }
-        
-        const registro = tiempos[0];
-        console.log('Registro de prueba:', registro);
-        
-        // Intentar actualizar con un tiempo de prueba
-        const tiempoPrueba = '99:99.999';
-        const { error: updateError } = await window.supabaseClient
-            .from('tiempos_rally')
-            .update({ 
-                tiempo_transcurrido: tiempoPrueba
-            })
-            .eq('id', registro.id);
-        
-        if (updateError) {
-            console.error('Error en actualización de prueba:', updateError);
-            showNotification('Error en actualización: ' + updateError.message, 'error');
-        } else {
-            console.log('✅ Actualización de prueba exitosa');
-            showNotification('Actualización de prueba exitosa', 'success');
-            
-            // Restaurar el valor original
-            setTimeout(async () => {
-                await window.supabaseClient
-                    .from('tiempos_rally')
-                    .update({ 
-                        tiempo_transcurrido: registro.tiempo_transcurrido
-                    })
-                    .eq('id', registro.id);
-                console.log('Valor original restaurado');
-            }, 2000);
-        }
-        
-    } catch (error) {
-        console.error('Error en prueba de actualización:', error);
-        showNotification('Error en prueba: ' + error.message, 'error');
-    }
-}
-
-// Función alternativa para actualizar tiempo usando una estrategia diferente
-async function updateTimeAlternative() {
-    console.log('=== ACTUALIZACIÓN ALTERNATIVA ===');
-    
-    if (!currentPilotTimes.tiempo) {
-        showNotification('No hay tiempo seleccionado para modificar', 'warning');
-        return;
-    }
-    
-    const minutesInput = document.getElementById('minutes-input');
-    const secondsInput = document.getElementById('seconds-input');
-    const millisecondsInput = document.getElementById('milliseconds-input');
-    const operationRadios = document.getElementsByName('operation');
-    
-    const minutes = parseInt(minutesInput.value) || 0;
-    const seconds = parseInt(secondsInput.value) || 0;
-    const milliseconds = parseInt(millisecondsInput.value) || 0;
-    const operation = Array.from(operationRadios).find(radio => radio.checked)?.value || 'add';
-    
-    if (minutes === 0 && seconds === 0 && milliseconds === 0) {
-        showNotification('No hay ajuste de tiempo para aplicar', 'warning');
-        return;
-    }
-    
-    try {
-        // Calcular nuevo tiempo
-        const currentTimeInSeconds = timeToSeconds(currentPilotTimes.tiempo);
-        const adjustmentInSeconds = (minutes * 60) + seconds + (milliseconds / 100);
-        
-        let newTimeInSeconds;
-        if (operation === 'add') {
-            newTimeInSeconds = currentTimeInSeconds + adjustmentInSeconds;
-        } else {
-            newTimeInSeconds = currentTimeInSeconds - adjustmentInSeconds;
-        }
-        
-        if (newTimeInSeconds < 0) {
-            newTimeInSeconds = 0;
-        }
-        
-        const newTime = secondsToTime(newTimeInSeconds);
-        
-        console.log('Nuevo tiempo calculado:', newTime);
-        
-        // Estrategia alternativa: usar RPC o consulta directa
-        if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient !== null) {
-            console.log('Intentando actualización alternativa...');
-            
-            // Primero, obtener todos los registros para encontrar el correcto
-            const { data: allTiempos, error: fetchError } = await window.supabaseClient
-                .from('tiempos_rally')
-                .select('*');
-            
-            if (fetchError) {
-                throw fetchError;
-            }
-            
-            console.log('Todos los registros obtenidos:', allTiempos.length);
-            
-            // Buscar el registro específico
-            const registroEncontrado = allTiempos.find(t => 
-                t.numero_auto == currentPilotTimes.numero_auto && 
-                t.prueba === currentPilotTimes.prueba
-            );
-            
-            if (!registroEncontrado) {
-                throw new Error('No se encontró el registro para actualizar');
-            }
-            
-            console.log('Registro encontrado:', registroEncontrado);
-            
-            // Actualizar usando el ID exacto
-            const { error: updateError } = await window.supabaseClient
-                .from('tiempos_rally')
-                .update({ 
-                    tiempo_transcurrido: newTime
-                })
-                .eq('id', registroEncontrado.id);
-            
-            if (updateError) {
-                console.error('Error en actualización alternativa:', updateError);
-                throw updateError;
-            }
-            
-            console.log('✅ Actualización alternativa exitosa');
-            
-            // Actualizar datos locales
-            const tiempoIndex = tiemposData.findIndex(t => t.id === registroEncontrado.id);
-            if (tiempoIndex !== -1) {
-                tiemposData[tiempoIndex].tiempo_transcurrido = newTime;
-            }
-            
-            // Actualizar currentPilotTimes
-            currentPilotTimes.tiempo = newTime;
-            
-            showNotification(`Tiempo actualizado: ${currentPilotTimes.tiempo} → ${newTime}`, 'success');
-            
-            // Actualizar visualización
-            showCurrentTime(newTime);
-            resetTimeModifier();
-            
-        } else {
-            throw new Error('Supabase no está disponible');
-        }
-        
-    } catch (error) {
-        console.error('Error en actualización alternativa:', error);
-        showNotification('Error en actualización alternativa: ' + error.message, 'error');
-    }
-}
-
-// Función para reemplazar el tiempo (eliminar y crear nuevo)
-async function updateTimeReplace() {
-    console.log('=== REEMPLAZO DE TIEMPO ===');
-    
-    if (!currentPilotTimes.tiempo) {
-        showNotification('No hay tiempo seleccionado para modificar', 'warning');
-        return;
-    }
-    
-    const minutesInput = document.getElementById('minutes-input');
-    const secondsInput = document.getElementById('seconds-input');
-    const millisecondsInput = document.getElementById('milliseconds-input');
-    const operationRadios = document.getElementsByName('operation');
-    
-    const minutes = parseInt(minutesInput.value) || 0;
-    const seconds = parseInt(secondsInput.value) || 0;
-    const milliseconds = parseInt(millisecondsInput.value) || 0;
-    const operation = Array.from(operationRadios).find(radio => radio.checked)?.value || 'add';
-    
-    if (minutes === 0 && seconds === 0 && milliseconds === 0) {
-        showNotification('No hay ajuste de tiempo para aplicar', 'warning');
-        return;
-    }
-    
-    try {
-        // Calcular nuevo tiempo
-        const currentTimeInSeconds = timeToSeconds(currentPilotTimes.tiempo);
-        const adjustmentInSeconds = (minutes * 60) + seconds + (milliseconds / 100);
-        
-        let newTimeInSeconds;
-        if (operation === 'add') {
-            newTimeInSeconds = currentTimeInSeconds + adjustmentInSeconds;
-        } else {
-            newTimeInSeconds = currentTimeInSeconds - adjustmentInSeconds;
-        }
-        
-        if (newTimeInSeconds < 0) {
-            newTimeInSeconds = 0;
-        }
-        
-        const newTime = secondsToTime(newTimeInSeconds);
-        
-        console.log('Nuevo tiempo calculado:', newTime);
-        
-        if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient !== null) {
-            console.log('Iniciando reemplazo de tiempo...');
-            
-            // Estrategia de reemplazo: eliminar el registro viejo y crear uno nuevo
-            const { data: registros, error: searchError } = await window.supabaseClient
-                .from('tiempos_rally')
-                .select('*')
-                .eq('numero_auto', currentPilotTimes.numero_auto)
-                .eq('prueba', currentPilotTimes.prueba);
-            
-            if (searchError) {
-                throw searchError;
-            }
-            
-            if (!registros || registros.length === 0) {
-                throw new Error('No se encontró el registro para reemplazar');
-            }
-            
-            console.log('Registros encontrados para reemplazar:', registros.length);
-            
-            // Eliminar todos los registros que coincidan
-            for (const registro of registros) {
-                console.log('Eliminando registro:', registro.id);
-                const { error: deleteError } = await window.supabaseClient
-                    .from('tiempos_rally')
-                    .delete()
-                    .eq('id', registro.id);
-                
-                if (deleteError) {
-                    console.warn('Error eliminando registro:', deleteError);
-                } else {
-                    console.log('Registro eliminado exitosamente');
-                }
-            }
-            
-            // Crear nuevo registro con el tiempo actualizado
-            const nuevoRegistro = {
-                numero_auto: currentPilotTimes.numero_auto,
-                prueba: currentPilotTimes.prueba,
-                tiempo_transcurrido: newTime,
-                fecha: new Date().toISOString().split('T')[0]
-            };
-            
-            console.log('Creando nuevo registro:', nuevoRegistro);
-            
-            const { data: nuevoData, error: insertError } = await window.supabaseClient
-                .from('tiempos_rally')
-                .insert([nuevoRegistro])
-                .select();
-            
-            if (insertError) {
-                throw insertError;
-            }
-            
-            console.log('✅ Nuevo registro creado exitosamente:', nuevoData);
-            
-            // Actualizar datos locales
-            const tiempoIndex = tiemposData.findIndex(t => 
-                t.numero_auto == currentPilotTimes.numero_auto && 
-                t.prueba === currentPilotTimes.prueba
-            );
-            
-            if (tiempoIndex !== -1) {
-                tiemposData[tiempoIndex] = { ...nuevoRegistro, id: nuevoData[0].id };
-            } else {
-                tiemposData.push({ ...nuevoRegistro, id: nuevoData[0].id });
-            }
-            
-            // Actualizar currentPilotTimes
-            currentPilotTimes.tiempo = newTime;
-            currentPilotTimes.id = nuevoData[0].id;
-            
-            showNotification(`Tiempo reemplazado: ${currentPilotTimes.tiempo} → ${newTime}`, 'success');
-            
-            // Actualizar visualización
-            showCurrentTime(newTime);
-            resetTimeModifier();
-            
-        } else {
-            throw new Error('Supabase no está disponible');
-        }
-        
-    } catch (error) {
-        console.error('Error en reemplazo de tiempo:', error);
-        showNotification('Error en reemplazo: ' + error.message, 'error');
-    }
-}
-
-// Función para verificar qué tablas están disponibles
-async function checkTables() {
-    console.log('=== VERIFICANDO TABLAS DISPONIBLES ===');
-    
-    if (typeof window.supabaseClient === 'undefined' || window.supabaseClient === null) {
-        showNotification('Supabase no está disponible', 'error');
-        return;
-    }
-    
-    const tablas = ['largadas', 'llegadas', 'tiempos_rally', 'pilotos'];
-    
-    for (const tabla of tablas) {
-        try {
-            console.log(`Verificando tabla: ${tabla}`);
-            const { data, error } = await window.supabaseClient
-                .from(tabla)
-                .select('*')
-                .limit(1);
-            
-            if (error) {
-                console.log(`❌ ${tabla}: ${error.message}`);
-            } else {
-                console.log(`✅ ${tabla}: ${data.length} registros encontrados`);
-                if (data.length > 0) {
-                    console.log(`   Estructura:`, Object.keys(data[0]));
-                }
-            }
-        } catch (err) {
-            console.log(`❌ ${tabla}: Error - ${err.message}`);
-        }
-    }
-    
-    showNotification('Verificación de tablas completada - revisa la consola', 'info');
-}
-
-// Función para actualizar tiempo usando las tablas base (largadas y llegadas)
-async function updateTimeWithBaseTables() {
-    console.log('=== ACTUALIZACIÓN CON TABLAS BASE ===');
-    
-    if (!currentPilotTimes.tiempo) {
-        showNotification('No hay tiempo seleccionado para modificar', 'warning');
-        return;
-    }
-    
-    const minutesInput = document.getElementById('minutes-input');
-    const secondsInput = document.getElementById('seconds-input');
-    const millisecondsInput = document.getElementById('milliseconds-input');
-    const operationRadios = document.getElementsByName('operation');
-    
-    const minutes = parseInt(minutesInput.value) || 0;
-    const seconds = parseInt(secondsInput.value) || 0;
-    const milliseconds = parseInt(millisecondsInput.value) || 0;
-    const operation = Array.from(operationRadios).find(radio => radio.checked)?.value || 'add';
-    
-    if (minutes === 0 && seconds === 0 && milliseconds === 0) {
-        showNotification('No hay ajuste de tiempo para aplicar', 'warning');
-        return;
-    }
-    
-    try {
-        // Calcular nuevo tiempo
-        const currentTimeInSeconds = timeToSeconds(currentPilotTimes.tiempo);
-        const adjustmentInSeconds = (minutes * 60) + seconds + (milliseconds / 100);
-        
-        let newTimeInSeconds;
-        if (operation === 'add') {
-            newTimeInSeconds = currentTimeInSeconds + adjustmentInSeconds;
-        } else {
-            newTimeInSeconds = currentTimeInSeconds - adjustmentInSeconds;
-        }
-        
-        if (newTimeInSeconds < 0) {
-            newTimeInSeconds = 0;
-        }
-        
-        const newTime = secondsToTime(newTimeInSeconds);
-        
-        console.log('Nuevo tiempo calculado:', newTime);
-        
-        if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient !== null) {
-            console.log('Buscando registros en tablas base...');
-            
-            // Buscar en la tabla llegadas (que probablemente contiene los tiempos)
-            const { data: llegadas, error: llegadasError } = await window.supabaseClient
-                .from('llegadas')
-                .select('*')
-                .eq('numero_auto', currentPilotTimes.numero_auto);
-            
-            if (llegadasError) {
-                console.error('Error buscando en llegadas:', llegadasError);
-                throw llegadasError;
-            }
-            
-            console.log('Registros en llegadas:', llegadas);
-            
-            if (llegadas && llegadas.length > 0) {
-                // Actualizar el primer registro encontrado
-                const registro = llegadas[0];
-                console.log('Actualizando registro en llegadas:', registro);
-                
-                const { error: updateError } = await window.supabaseClient
-                    .from('llegadas')
-                    .update({ 
-                        tiempo_transcurrido: newTime
-                    })
-                    .eq('id', registro.id);
-                
-                if (updateError) {
-                    console.error('Error actualizando llegadas:', updateError);
-                    throw updateError;
-                }
-                
-                console.log('✅ Tiempo actualizado en llegadas');
-                
-                // Actualizar datos locales
-                const tiempoIndex = tiemposData.findIndex(t => 
-                    t.numero_auto == currentPilotTimes.numero_auto && 
-                    t.prueba === currentPilotTimes.prueba
-                );
-                
-                if (tiempoIndex !== -1) {
-                    tiemposData[tiempoIndex].tiempo_transcurrido = newTime;
-                }
-                
-                // Actualizar currentPilotTimes
-                currentPilotTimes.tiempo = newTime;
-                
-                showNotification(`Tiempo actualizado: ${currentPilotTimes.tiempo} → ${newTime}`, 'success');
-                
-                // Actualizar visualización
-                showCurrentTime(newTime);
-                resetTimeModifier();
-                
-            } else {
-                throw new Error('No se encontraron registros en la tabla llegadas');
-            }
-            
-        } else {
-            throw new Error('Supabase no está disponible');
-        }
-        
-    } catch (error) {
-        console.error('Error en actualización con tablas base:', error);
-        showNotification('Error en actualización: ' + error.message, 'error');
-    }
-}
-
-// Función principal para actualizar tiempo - SIMPLIFICADA
+// Función principal para actualizar tiempo
 async function updateTime() {
     console.log('=== ACTUALIZAR TIEMPO ===');
     
@@ -2674,55 +2437,343 @@ async function updateTime() {
     }
 }
 
-// Función para debuggear formatos de hora
-async function debugTimeFormats() {
-    console.log('=== DEBUG FORMATOS DE HORA ===');
-    
+// ==================== FUNCIONES DE GESTIÓN DE RALLYES ====================
+
+// Función para cargar rallyes desde Supabase
+async function loadRallyes() {
     try {
-        if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient !== null) {
-            // Verificar formato de horas en largadas
-            const { data: largadas, error: largadasError } = await window.supabaseClient
-                .from('largadas')
-                .select('hora_largada')
-                .limit(3);
-            
-            if (largadasError) {
-                console.error('Error obteniendo largadas:', largadasError);
-            } else {
-                console.log('Ejemplos de hora_largada:', largadas);
-            }
-            
-            // Verificar formato de horas en llegadas
-            const { data: llegadas, error: llegadasError } = await window.supabaseClient
-                .from('llegadas')
-                .select('hora_llegada')
-                .limit(3);
-            
-            if (llegadasError) {
-                console.error('Error obteniendo llegadas:', llegadasError);
-            } else {
-                console.log('Ejemplos de hora_llegada:', llegadas);
-            }
-            
-            // Verificar vista tiempos_rally
-            const { data: tiempos, error: tiemposError } = await window.supabaseClient
-                .from('tiempos_rally')
-                .select('hora_largada, hora_llegada, tiempo_transcurrido')
-                .limit(3);
-            
-            if (tiemposError) {
-                console.error('Error obteniendo tiempos:', tiemposError);
-            } else {
-                console.log('Ejemplos de tiempos_rally:', tiempos);
-            }
-            
-        } else {
-            console.log('Supabase no está disponible');
+        if (!window.supabaseClient) {
+            console.warn('Supabase no inicializado');
+            return;
         }
         
+        const { data, error } = await window.supabaseClient
+            .from('rallyes')
+            .select('*')
+            .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        
+        rallyesData = data || [];
+        
+        // Llenar el select de rallyes
+        const rallySelect = document.getElementById('rally-select');
+        if (rallySelect) {
+            rallySelect.innerHTML = '';
+            
+            rallyesData.forEach(rally => {
+                const option = document.createElement('option');
+                option.value = rally.id;
+                option.textContent = rally.nombre;
+                option.dataset.nombre = rally.nombre;
+                if (rally.activo) {
+                    option.selected = true;
+                    rallyActivoActual = rally.nombre;
+                }
+                rallySelect.appendChild(option);
+            });
+            
+            // Cargar foto y nombre del rally activo
+            const rallyActivo = rallyesData.find(r => r.activo);
+            const fotoInput = document.getElementById('rally-foto-input');
+            const nombreInput = document.getElementById('rally-nombre-input');
+            if (fotoInput && rallyActivo) {
+                fotoInput.value = rallyActivo.foto_url || '';
+            }
+            if (nombreInput && rallyActivo) {
+                nombreInput.value = rallyActivo.nombre || '';
+            }
+        }
+        
+        // Cargar rallyes finalizados
+        loadRallyesFinalizados();
+        
     } catch (error) {
-        console.error('Error en debug de formatos:', error);
+        console.error('Error cargando rallyes:', error);
     }
 }
 
-console.log('JavaScript de administración cargado correctamente');
+// Función para cargar rallyes finalizados
+function loadRallyesFinalizados() {
+    const container = document.getElementById('rallyes-finalizados');
+    if (!container) return;
+    
+    const rallyesFinalizados = rallyesData.filter(r => !r.activo);
+    
+    if (rallyesFinalizados.length === 0) {
+        container.innerHTML = '<p style="color: var(--text-muted); font-size: 14px;">No hay rallyes finalizados</p>';
+        return;
+    }
+    
+    container.innerHTML = rallyesFinalizados.map(rally => `
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: var(--bg-secondary); border-radius: 8px;">
+            <div>
+                <strong>${rally.nombre}</strong>
+                <p style="font-size: 12px; color: var(--text-muted); margin: 4px 0 0 0;">
+                    ${rally.fecha_fin ? 'Finalizado: ' + new Date(rally.fecha_fin).toLocaleDateString('es-AR') : 'Sin fecha'}
+                </p>
+            </div>
+            <button onclick="activarRally(${rally.id})" class="btn btn-sm" style="font-size: 12px;">
+                <i class="fas fa-redo"></i> Activar
+            </button>
+        </div>
+    `).join('');
+}
+
+// Función para actualizar el rally
+window.actualizarRally = async function() {
+    try {
+        const rallySelect = document.getElementById('rally-select');
+        const rallyFoto = document.getElementById('rally-foto-input');
+        const rallyNombre = document.getElementById('rally-nombre-input');
+        
+        if (!rallySelect || !rallyFoto || !rallyNombre) return;
+        
+        const rallyId = rallySelect.value;
+        const fotoUrl = rallyFoto.value.trim();
+        const nombre = rallyNombre.value.trim();
+        
+        if (!rallyId) {
+            showNotification('Por favor selecciona un rally', 'warning');
+            return;
+        }
+        
+        if (!nombre) {
+            showNotification('Por favor ingresa un nombre para el rally', 'warning');
+            return;
+        }
+        
+        if (!window.supabaseClient) {
+            showNotification('Error: No hay conexión a Supabase', 'error');
+            return;
+        }
+        
+        const { error } = await window.supabaseClient
+            .from('rallyes')
+            .update({
+                nombre: nombre,
+                foto_url: fotoUrl,
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', rallyId);
+        
+        if (error) throw error;
+        
+        showNotification('Rally actualizado correctamente', 'success');
+        loadRallyes();
+        
+    } catch (error) {
+        console.error('Error actualizando rally:', error);
+        showNotification('Error al actualizar el rally', 'error');
+    }
+};
+
+// Función para finalizar un rally
+window.finalizarRally = async function() {
+    try {
+        const rallySelect = document.getElementById('rally-select');
+        if (!rallySelect || !rallySelect.value) return;
+        
+        if (!confirm('¿Estás seguro de que quieres finalizar este rally?')) return;
+        
+        const rallyId = rallySelect.value;
+        
+        if (!window.supabaseClient) {
+            showNotification('Error: No hay conexión a Supabase', 'error');
+            return;
+        }
+        
+        const { error } = await window.supabaseClient
+            .from('rallyes')
+            .update({
+                activo: false,
+                fecha_fin: new Date().toISOString().split('T')[0],
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', rallyId);
+        
+        if (error) throw error;
+        
+        showNotification('Rally finalizado correctamente', 'success');
+        
+        // Recargar rallyes y seleccionar automáticamente el rally activo
+        await loadRallyes();
+        
+        // Seleccionar automáticamente el rally activo después de finalizar
+        const rallySelectElement = document.getElementById('rally-select');
+        if (rallySelectElement) {
+            const rallyActivo = rallyesData.find(r => r.activo);
+            if (rallyActivo) {
+                rallySelectElement.value = rallyActivo.id;
+                rallyActivoActual = rallyActivo.nombre;
+                
+                // Actualizar inputs
+                const fotoInput = document.getElementById('rally-foto-input');
+                const nombreInput = document.getElementById('rally-nombre-input');
+                if (fotoInput) fotoInput.value = rallyActivo.foto_url || '';
+                if (nombreInput) nombreInput.value = rallyActivo.nombre || '';
+                
+                // Recargar datos del nuevo rally
+                await connectAndLoad();
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error finalizando rally:', error);
+        showNotification('Error al finalizar el rally', 'error');
+    }
+};
+
+// Función para activar un rally finalizado
+window.activarRally = async function(rallyId) {
+    try {
+        if (!confirm('¿Activar este rally? El rally actual será desactivado.')) return;
+        
+        if (!window.supabaseClient) {
+            showNotification('Error: No hay conexión a Supabase', 'error');
+            return;
+        }
+        
+        // Desactivar todos los rallyes
+        await window.supabaseClient
+            .from('rallyes')
+            .update({ activo: false })
+            .eq('activo', true);
+        
+        // Activar el seleccionado
+        const { error } = await window.supabaseClient
+            .from('rallyes')
+            .update({
+                activo: true,
+                fecha_inicio: new Date().toISOString().split('T')[0],
+                updated_at: new Date().toISOString()
+            })
+            .eq('id', rallyId);
+        
+        if (error) throw error;
+        
+        showNotification('Rally activado correctamente', 'success');
+        loadRallyes();
+        
+        // Recargar datos filtrados por el nuevo rally
+        await connectAndLoad();
+        
+    } catch (error) {
+        console.error('Error activando rally:', error);
+        showNotification('Error al activar el rally', 'error');
+    }
+};
+
+// Función para crear un nuevo rally
+window.crearRally = async function() {
+    try {
+        console.log('=== INICIANDO CREACIÓN DE RALLY ===');
+        
+        const nombreInput = document.getElementById('new-rally-nombre');
+        if (!nombreInput) {
+            console.error('No se encontró el input de nombre');
+            showNotification('Error: No se encontró el campo de nombre', 'error');
+            return;
+        }
+        
+        const nombre = nombreInput.value.trim();
+        console.log('Nombre del rally:', nombre);
+        
+        if (!nombre) {
+            showNotification('Por favor ingresa un nombre para el rally', 'warning');
+            return;
+        }
+        
+        // Verificar si supabaseClient está disponible
+        console.log('Verificando conexión a Supabase...');
+        if (!window.supabaseClient) {
+            console.error('supabaseClient no está disponible');
+            showNotification('Error: No hay conexión a Supabase. Recarga la página.', 'error');
+            return;
+        }
+        console.log('✅ Supabase cliente disponible');
+        
+        // Desactivar todos los rallyes actuales
+        console.log('Desactivando rallyes anteriores...');
+        const { error: updateError } = await window.supabaseClient
+            .from('rallyes')
+            .update({ activo: false })
+            .eq('activo', true);
+        
+        if (updateError) {
+            console.error('Error desactivando rallyes:', updateError);
+            showNotification('Advertencia: No se pudieron desactivar los rallyes anteriores', 'warning');
+        }
+        
+        // Crear el nuevo rally activo
+        console.log('Creando nuevo rally:', nombre);
+        const { data, error } = await window.supabaseClient
+            .from('rallyes')
+            .insert({
+                nombre: nombre,
+                foto_url: '',
+                activo: true,
+                fecha_inicio: new Date().toISOString().split('T')[0]
+            })
+            .select();
+        
+        if (error) {
+            console.error('Error de Supabase:', error);
+            
+            // Manejo específico de errores conocidos
+            if (error.code === '23505') {
+                showNotification('Este nombre de rally ya existe. Por favor usa otro nombre.', 'warning');
+            } else if (error.code === '42501') {
+                showNotification('Error de permisos. Verifica la configuración de Supabase RLS.', 'error');
+            } else {
+                showNotification('Error al crear el rally: ' + (error.message || 'Error desconocido'), 'error');
+            }
+            throw error;
+        }
+        
+        console.log('✅ Rally creado exitosamente:', data);
+        showNotification('Rally creado y activado correctamente', 'success');
+        
+        // Limpiar input
+        nombreInput.value = '';
+        
+        // Recargar rallyes
+        console.log('Recargando lista de rallyes...');
+        await loadRallyes();
+        
+        // Seleccionar automáticamente el rally recién creado
+        const rallySelectElement = document.getElementById('rally-select');
+        if (rallySelectElement && data && data.length > 0) {
+            const nuevoRally = rallyesData.find(r => r.id === data[0].id);
+            if (nuevoRally) {
+                rallySelectElement.value = nuevoRally.id;
+                rallyActivoActual = nuevoRally.nombre;
+                console.log('Rally seleccionado:', nuevoRally.nombre);
+                
+                // Actualizar inputs
+                const fotoInput = document.getElementById('rally-foto-input');
+                const nombreInputField = document.getElementById('rally-nombre-input');
+                if (fotoInput) fotoInput.value = nuevoRally.foto_url || '';
+                if (nombreInputField) nombreInputField.value = nuevoRally.nombre || '';
+            }
+        }
+        
+        // Recargar datos
+        console.log('Recargando datos generales...');
+        await connectAndLoad();
+        
+        console.log('=== RALLY CREADO EXITOSAMENTE ===');
+        
+    } catch (error) {
+        console.error('❌ Error creando rally:', error);
+        console.error('Detalles del error:', {
+            message: error.message,
+            code: error.code,
+            details: error.details,
+            hint: error.hint
+        });
+        showNotification('Error al crear el rally: ' + (error.message || 'Error desconocido'), 'error');
+    }
+};
+
+// Asegurar que las funciones estén disponibles globalmente
