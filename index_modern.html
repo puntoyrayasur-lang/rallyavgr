@@ -526,14 +526,54 @@
                         {isMobile ? (
                             // Layout móvil
                             <div style={{padding: '12px 0'}}>
-                                {/* Logo y título */}
-                                <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px'}}>
-                                    <div style={{width: '32px', height: '32px', backgroundColor: '#1e40af', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: '0'}}>
-                                        <span style={{color: 'white', fontWeight: 'bold', fontSize: '14px'}}>R</span>
+                                {/* Foto y navegación */}
+                                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', marginBottom: '16px'}}>
+                                    {/* Navegación con foto */}
+                                    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', width: '100%'}}>
+                                        <button 
+                                            onClick={() => onRallyChange('prev')}
+                                            className="nav-button"
+                                            title="Rally anterior"
+                                            style={{padding: '8px'}}
+                                        >
+                                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                            </svg>
+                                        </button>
+                                        {currentRallyData?.foto_url ? (
+                                            <img 
+                                                src={currentRallyData.foto_url} 
+                                                alt={currentRally}
+                                                style={{
+                                                    width: '200px',
+                                                    height: '80px',
+                                                    borderRadius: '8px',
+                                                    objectFit: 'cover',
+                                                    objectPosition: 'center 35%',
+                                                    flexShrink: '0',
+                                                    backgroundColor: 'transparent'
+                                                }}
+                                            />
+                                        ) : (
+                                            <div style={{width: '200px', height: '80px', backgroundColor: '#1e40af', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: '0'}}>
+                                                <span style={{color: 'white', fontWeight: 'bold', fontSize: '24px'}}>R</span>
+                                            </div>
+                                        )}
+                                        <button 
+                                            onClick={() => onRallyChange('next')}
+                                            className="nav-button"
+                                            title="Rally siguiente"
+                                            style={{padding: '8px'}}
+                                        >
+                                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                            </svg>
+                                        </button>
                                     </div>
-                                    <div style={{minWidth: '0', flex: '1'}}>
-                                        <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
-                                            <h1 style={{fontSize: '16px', fontWeight: 'bold', color: '#111827', margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{currentRally}</h1>
+                                    {/* Nombre del rally debajo de la foto */}
+                                    <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px'}}>
+                                        <div style={{display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center'}}>
+                                            <h1 style={{fontSize: '18px', fontWeight: 'bold', color: '#111827', margin: '0'}}>{currentRally}</h1>
                                             {currentRallyData?.activo && (
                                                 <span style={{
                                                     fontSize: '10px',
@@ -553,29 +593,6 @@
                                 
                                 {/* Controles */}
                                 <div style={{display: 'flex', gap: '12px', flexWrap: 'wrap'}}>
-                                    {/* Navegación */}
-                                    <div style={{display: 'flex', gap: '8px'}}>
-                                        <button 
-                                            onClick={() => onRallyChange('prev')}
-                                            className="nav-button"
-                                            title="Rally anterior"
-                                            style={{padding: '8px'}}
-                                        >
-                                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                            </svg>
-                                        </button>
-                                        <button 
-                                            onClick={() => onRallyChange('next')}
-                                            className="nav-button"
-                                            title="Rally siguiente"
-                                            style={{padding: '8px'}}
-                                        >
-                                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                            </svg>
-                                        </button>
-                                    </div>
                                     
                                     {/* Dropdowns */}
                                     <div style={{display: 'flex', gap: '8px', flex: '1', minWidth: '0'}}>
@@ -605,18 +622,61 @@
                             </div>
                         ) : (
                             // Layout desktop
-                        <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '64px', flexWrap: 'wrap', gap: '16px'}}>
-                            {/* Navegación izquierda */}
-                            <div style={{display: 'flex', alignItems: 'center', gap: '16px'}}>
-                                <button 
-                                    onClick={() => onRallyChange('prev')}
-                                    className="nav-button"
-                                    title="Rally anterior"
-                                >
-                                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                    </svg>
-                                </button>
+                        <div style={{display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap'}}>
+                            {/* Flecha izquierda */}
+                            <button 
+                                onClick={() => onRallyChange('prev')}
+                                className="nav-button"
+                                title="Rally anterior"
+                            >
+                                <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                </svg>
+                            </button>
+
+                            {/* Imagen y nombre centrados */}
+                            <div style={{flex: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', minWidth: '0'}}>
+                                {currentRallyData?.foto_url ? (
+                                    <img 
+                                        src={currentRallyData.foto_url} 
+                                        alt={currentRally}
+                                        style={{
+                                            width: '280px',
+                                            height: '100px',
+                                            borderRadius: '10px',
+                                            objectFit: 'cover',
+                                            objectPosition: 'center 35%',
+                                            flexShrink: '0',
+                                            backgroundColor: 'transparent'
+                                        }}
+                                    />
+                                ) : (
+                                    <div style={{width: '280px', height: '100px', backgroundColor: '#1e40af', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: '0'}}>
+                                        <span style={{color: 'white', fontWeight: 'bold', fontSize: '32px'}}>R</span>
+                                    </div>
+                                )}
+                                <div style={{display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px'}}>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center'}}>
+                                        <h1 style={{fontSize: '20px', fontWeight: 'bold', color: '#111827', margin: '0'}}>{currentRally}</h1>
+                                        {currentRallyData?.activo && (
+                                            <span style={{
+                                                fontSize: '11px',
+                                                padding: '2px 8px',
+                                                background: '#10b981',
+                                                color: 'white',
+                                                borderRadius: '12px',
+                                                fontWeight: '600'
+                                            }}>
+                                                ACTIVO
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p style={{fontSize: '14px', color: '#6b7280', margin: '0'}}>Dashboard de Tiempos</p>
+                                </div>
+                            </div>
+
+                            {/* Flecha derecha y dropdowns */}
+                            <div style={{display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap'}}>
                                 <button 
                                     onClick={() => onRallyChange('next')}
                                     className="nav-button"
@@ -626,37 +686,8 @@
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                     </svg>
                                 </button>
-                            </div>
 
-                            {/* Logo central */}
-                            <div style={{flex: '1', minWidth: '0'}}>
-                                <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                                    <div style={{width: '40px', height: '40px', backgroundColor: '#1e40af', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: '0'}}>
-                                        <span style={{color: 'white', fontWeight: 'bold', fontSize: '18px'}}>R</span>
-                                    </div>
-                                    <div style={{minWidth: '0'}}>
-                                        <div style={{display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap'}}>
-                                            <h1 style={{fontSize: '20px', fontWeight: 'bold', color: '#111827', margin: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{currentRally}</h1>
-                                            {currentRallyData?.activo && (
-                                                <span style={{
-                                                    fontSize: '11px',
-                                                    padding: '2px 8px',
-                                                    background: '#10b981',
-                                                    color: 'white',
-                                                    borderRadius: '12px',
-                                                    fontWeight: '600'
-                                                }}>
-                                                    ACTIVO
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p style={{fontSize: '14px', color: '#6b7280', margin: '0'}}>Dashboard de Tiempos</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Dropdowns derecha */}
-                            <div style={{display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap'}}>
+                                {/* Dropdowns */}
                                 <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
                                         <label style={{fontSize: '14px', fontWeight: '500', color: '#374151'}}>
                                         Prueba:
@@ -1559,22 +1590,6 @@
                         pruebas={pruebas}
                         dias={dias}
                     />
-
-                    {/* Foto del rally */}
-                    {rallies[currentRallyIndex]?.foto_url && (
-                        <div style={{margin: '0 auto 24px', maxWidth: '1280px', padding: '0 16px', textAlign: 'center'}}>
-                            <img 
-                                src={rallies[currentRallyIndex].foto_url} 
-                                alt={currentRally}
-                                style={{
-                                    maxWidth: '100%',
-                                    maxHeight: '300px',
-                                    borderRadius: '12px',
-                                    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-                                }}
-                            />
-                        </div>
-                    )}
 
                     {/* Botones de categorías */}
                     <CategoryButtons
