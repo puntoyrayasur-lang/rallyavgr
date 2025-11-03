@@ -541,19 +541,22 @@
                                             </svg>
                                         </button>
                                         {currentRallyData?.foto_url ? (
-                                            <img 
-                                                src={currentRallyData.foto_url} 
-                                                alt={currentRally}
-                                                style={{
-                                                    width: '200px',
-                                                    height: '80px',
-                                                    borderRadius: '8px',
-                                                    objectFit: 'cover',
-                                                    objectPosition: 'center 35%',
-                                                    flexShrink: '0',
-                                                    backgroundColor: 'transparent'
-                                                }}
-                                            />
+                                            <div style={{width: '380px', height: '170px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                                <img 
+                                                    src={currentRallyData.foto_url} 
+                                                    alt={currentRally}
+                                                    style={{
+                                                        maxWidth: '320px',
+                                                        maxHeight: '140px',
+                                                        width: 'auto',
+                                                        height: 'auto',
+                                                        borderRadius: '8px',
+                                                        objectFit: 'contain',
+                                                        flexShrink: '0',
+                                                        backgroundColor: 'transparent'
+                                                    }}
+                                                />
+                                            </div>
                                         ) : (
                                             <div style={{width: '200px', height: '80px', backgroundColor: '#1e40af', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: '0'}}>
                                                 <span style={{color: 'white', fontWeight: 'bold', fontSize: '24px'}}>R</span>
@@ -637,19 +640,22 @@
                             {/* Imagen y nombre centrados */}
                             <div style={{flex: '1', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', minWidth: '0'}}>
                                 {currentRallyData?.foto_url ? (
-                                    <img 
-                                        src={currentRallyData.foto_url} 
-                                        alt={currentRally}
-                                        style={{
-                                            width: '280px',
-                                            height: '100px',
-                                            borderRadius: '10px',
-                                            objectFit: 'cover',
-                                            objectPosition: 'center 35%',
-                                            flexShrink: '0',
-                                            backgroundColor: 'transparent'
-                                        }}
-                                    />
+                                    <div style={{width: '500px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                                        <img 
+                                            src={currentRallyData.foto_url} 
+                                            alt={currentRally}
+                                            style={{
+                                                maxWidth: '420px',
+                                                maxHeight: '170px',
+                                                width: 'auto',
+                                                height: 'auto',
+                                                borderRadius: '10px',
+                                                objectFit: 'contain',
+                                                flexShrink: '0',
+                                                backgroundColor: 'transparent'
+                                            }}
+                                        />
+                                    </div>
                                 ) : (
                                     <div style={{width: '280px', height: '100px', backgroundColor: '#1e40af', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: '0'}}>
                                         <span style={{color: 'white', fontWeight: 'bold', fontSize: '32px'}}>R</span>
