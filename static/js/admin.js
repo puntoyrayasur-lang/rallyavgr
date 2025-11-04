@@ -2060,10 +2060,14 @@ async function applyTimeModification() {
         // Aplicar operación (sumar o restar)
         const operation = Array.from(document.getElementsByName('operation')).find(radio => radio.checked)?.value || 'add';
         let newTimeInSeconds;
+        let adjustmentForLlegada; // Ajuste para la hora de llegada (considerando la operación)
+        
         if (operation === 'add') {
             newTimeInSeconds = currentTimeInSeconds + adjustmentInSeconds;
+            adjustmentForLlegada = adjustmentInSeconds; // Sumar tiempo = sumar a la hora de llegada
         } else {
             newTimeInSeconds = currentTimeInSeconds - adjustmentInSeconds;
+            adjustmentForLlegada = -adjustmentInSeconds; // Restar tiempo = restar a la hora de llegada
         }
         
         // Asegurar que no sea negativo
@@ -2084,21 +2088,20 @@ async function applyTimeModification() {
                 allTiempos.filter(t => t.nombre_rally === nombreRallyActivo) : 
                 allTiempos;
                 
-            const tiempoCompleto = tiemposFiltrados.find(t => 
-                t.numero_auto == currentPilotTimes.numero_auto && 
-                t.prueba === currentPilotTimes.prueba &&
-                (!nombreRallyActivo || t.nombre_rally === nombreRallyActivo)
-            );
+            const tiempoCompleto = tiemposFiltrados.find(t => {
+                const tNumero = String(t.numero_auto);
+                const numeroAutoStr = String(currentPilotTimes.numero_auto);
+                return tNumero === numeroAutoStr && 
+                       t.prueba === currentPilotTimes.prueba &&
+                       (!nombreRallyActivo || t.nombre_rally === nombreRallyActivo);
+            });
             
             if (!tiempoCompleto) {
                 throw new Error(`No se encontró el registro para actualizar en el rally ${nombreRallyActivo || 'actual'}`);
             }
             
-            console.log('Registro encontrado:', tiempoCompleto);
-            
             // Obtener la hora_llegada actual y calcular la nueva
             const llegadaId = tiempoCompleto.llegada_id;
-            console.log('ID de llegada:', llegadaId);
             
             if (!llegadaId) {
                 throw new Error('No se encontró llegada_id en el registro');
@@ -2112,14 +2115,18 @@ async function applyTimeModification() {
                 .single();
             
             if (llegadaError || !llegada) {
-                throw new Error('No se pudo obtener la hora de llegada actual');
+                throw new Error('No se pudo obtener la hora de llegada actual: ' + (llegadaError?.message || 'Registro no encontrado'));
             }
             
-            console.log('Hora de llegada actual:', llegada.hora_llegada);
-            
-            // Convertir hora_llegada a segundos, sumar ajuste, convertir de vuelta
+            // Convertir hora_llegada a segundos, aplicar ajuste (considerando la operación), convertir de vuelta
             const horaActualSeg = timeToSeconds(llegada.hora_llegada);
-            const nuevaHoraSeg = horaActualSeg + adjustmentInSeconds;
+            const nuevaHoraSeg = horaActualSeg + adjustmentForLlegada; // Usar adjustmentForLlegada que ya tiene el signo correcto
+            
+            // Asegurar que la nueva hora no sea negativa
+            if (nuevaHoraSeg < 0) {
+                throw new Error('La operación resultaría en una hora de llegada negativa');
+            }
+            
             const nuevaHoraLlegada = secondsToTime(nuevaHoraSeg);
             
             // Actualizar hora_llegada en la tabla llegadas
@@ -2131,11 +2138,8 @@ async function applyTimeModification() {
                 .eq('id', llegadaId);
             
             if (updateError) {
-                console.error('Error actualizando hora_llegada:', updateError);
-                throw updateError;
+                throw new Error('Error actualizando hora_llegada: ' + updateError.message);
             }
-            
-            console.log('Hora de llegada actualizada en Supabase correctamente');
         }
         
         // También actualizar en localStorage como respaldo (filtrando por rally)
@@ -2183,16 +2187,29 @@ async function applyTimeModification() {
             }
         }
         
-        showNotification(`Tiempo actualizado: ${currentPilotTimes.tiempo} → ${newTime}`, 'success');
+        // Guardar el tiempo anterior para la notificación
+        const tiempoAnterior = currentPilotTimes.tiempo;
         
-        // Actualizar visualización
+        // Recargar datos desde Supabase para obtener los valores actualizados
+        await connectAndLoad();
+        
+        // Actualizar currentPilotTimes con el nuevo tiempo
         currentPilotTimes.tiempo = newTime;
+        
+        // Mostrar el nuevo tiempo actualizado
         showCurrentTime(newTime);
+        
+        // Recargar el tiempo del piloto para asegurar que tenemos los datos más recientes
+        setTimeout(async () => {
+            await loadPilotTimes();
+            updateTimePreview();
+        }, 500);
+        
+        showNotification(`Tiempo actualizado: ${tiempoAnterior} → ${newTime}`, 'success');
         resetTimeModifier();
         
     } catch (error) {
-        console.error('Error aplicando modificación:', error);
-        showNotification('Error aplicando modificación de tiempo', 'error');
+        showNotification('Error aplicando modificación de tiempo: ' + (error.message || error), 'error');
     }
 }
 
