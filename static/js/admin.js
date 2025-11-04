@@ -2077,11 +2077,11 @@ async function applyTimeModification() {
         
         const newTime = secondsToTime(newTimeInSeconds);
         
+        // Obtener rally activo actual usando función helper (definir antes de usar en múltiples lugares)
+        const nombreRallyActivo = obtenerNombreRallyActual();
+        
         // Actualizar en Supabase - actualizar hora_llegada en tabla llegadas
         if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient !== null) {
-            
-            // Obtener rally activo actual usando función helper
-            const nombreRallyActivo = obtenerNombreRallyActual();
             
             // Buscar el registro completo filtrando por rally
             const tiemposFiltrados = nombreRallyActivo ? 
