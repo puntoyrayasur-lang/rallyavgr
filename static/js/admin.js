@@ -321,6 +321,9 @@ async function connectAndLoad() {
         
         showNotification('Conectando a la base de datos...', 'info');
         
+        // CARGAR PILOTOS PRIMERO para asegurar que estén disponibles
+        await loadPilotosData();
+        
         // Obtener rally activo actual usando función helper
         const nombreRallyActivo = obtenerNombreRallyActual();
         
@@ -352,7 +355,7 @@ async function connectAndLoad() {
         // Actualizar filtro de pruebas
         updatePruebaFilter();
         
-        // Cargar todas las pruebas
+        // Cargar todas las pruebas (ahora los pilotos ya están en localStorage)
         loadTiemposByPrueba();
         
         showNotification('Datos cargados correctamente', 'success');
@@ -1146,11 +1149,14 @@ function loadTiemposByPrueba() {
 
         // Obtener datos de autos desde localStorage
         const autosInfo = JSON.parse(localStorage.getItem('autos_info') || '{}');
+        console.log('📊 Datos de autos desde localStorage:', autosInfo);
 
         // Agregar filas para esta prueba
         const tbody = pruebaDiv.querySelector(`.prueba-tbody-${pruebaIndex}`);
         pruebaTiempos.forEach((tiempo, index) => {
-            const autoInfo = autosInfo[tiempo.numero_auto] || {};
+            // Convertir numero_auto a string para asegurar coincidencia
+            const numeroAutoStr = String(tiempo.numero_auto);
+            const autoInfo = autosInfo[numeroAutoStr] || {};
             
             const row = document.createElement('tr');
             row.className = `result-row ${index === 0 ? 'winner' : index < 3 ? 'podium' : ''}`;
@@ -1175,10 +1181,7 @@ function loadTiemposByPrueba() {
                     <span class="tiempo-value">${tiempo.tiempo_transcurrido || 'N/A'}</span>
                 </td>
                 <td class="hora">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span class="hora-value">${tiempo.hora_largada || 'N/A'}</span>
-                        ${tiempo.anticipada ? '<span style="color: #ff6b6b; font-size: 14px;" title="Salida anticipada">⚠️</span>' : ''}
-                    </div>
+                    <span class="hora-value">${tiempo.hora_largada || 'N/A'}</span>
                 </td>
                 <td class="hora">
                     <span class="hora-value">${tiempo.hora_llegada || 'N/A'}</span>
@@ -1446,6 +1449,20 @@ async function loadPilotosData() {
             pilotosData = pilotos || [];
             console.log('✅ Pilotos cargados desde Supabase:', pilotosData.length);
             console.log('Datos de pilotos:', pilotosData);
+            
+            // ACTUALIZAR localStorage con los datos de Supabase
+            const autosInfo = {};
+            pilotosData.forEach(piloto => {
+                const numeroAuto = String(piloto.numero_auto);
+                autosInfo[numeroAuto] = {
+                    piloto: piloto.piloto,
+                    navegante: piloto.navegante,
+                    clase: piloto.clase
+                };
+            });
+            localStorage.setItem('autos_info', JSON.stringify(autosInfo));
+            console.log('💾 Datos de pilotos actualizados en localStorage:', autosInfo);
+            
             populatePilotSelect();
             updateConnectionIndicator();
             return;
