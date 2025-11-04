@@ -2080,10 +2080,20 @@ async function applyTimeModification() {
         // Obtener rally activo actual usando función helper (definir antes de usar en múltiples lugares)
         const nombreRallyActivo = obtenerNombreRallyActual();
         
+        // Validar que allTiempos existe antes de filtrar
+        if (!allTiempos || !Array.isArray(allTiempos)) {
+            throw new Error('No hay datos de tiempos disponibles. Por favor, recarga la página.');
+        }
+        
         // Filtrar tiempos por rally (definir antes de usar en múltiples lugares)
         const tiemposFiltrados = nombreRallyActivo ? 
             allTiempos.filter(t => t.nombre_rally === nombreRallyActivo) : 
             allTiempos;
+        
+        // Validar que tiemposFiltrados se creó correctamente
+        if (!tiemposFiltrados || !Array.isArray(tiemposFiltrados)) {
+            throw new Error('Error al filtrar los tiempos del rally');
+        }
         
         // Actualizar en Supabase - actualizar hora_llegada en tabla llegadas
         if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient !== null) {
