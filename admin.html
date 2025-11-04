@@ -67,7 +67,26 @@
                             <label class="form-label">
                                 <i class="fas fa-image"></i> Foto del Rally
                             </label>
-                            <input type="text" id="rally-foto-input" class="form-control" placeholder="URL de la imagen">
+                            <input type="file" id="rally-foto-input" class="form-control" accept="image/*" style="padding: 8px; margin-bottom: 12px;">
+                            
+                            <!-- Vista previa de la imagen actual del rally -->
+                            <div id="foto-preview-container" style="margin-top: 12px;">
+                                <div id="foto-preview" style="display: none;">
+                                    <img id="foto-preview-img" src="" alt="Imagen del rally" style="max-width: 300px; max-height: 300px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 8px;">
+                                    <div style="font-size: 12px; color: var(--text-muted);">
+                                        Imagen actual del rally seleccionado
+                                    </div>
+                                </div>
+                                <div id="foto-nueva-preview" style="display: none; margin-top: 12px;">
+                                    <div style="font-size: 12px; color: var(--text-primary); font-weight: 600; margin-bottom: 8px;">
+                                        Nueva imagen seleccionada:
+                                    </div>
+                                    <img id="foto-nueva-preview-img" src="" alt="Nueva imagen" style="max-width: 300px; max-height: 300px; border-radius: 8px; border: 2px solid var(--primary-color);">
+                                    <button type="button" id="btn-cancelar-upload" class="btn btn-secondary" style="margin-top: 8px; display: block;">
+                                        <i class="fas fa-times"></i> Cancelar
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
