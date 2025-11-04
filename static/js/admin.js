@@ -1721,7 +1721,6 @@ function setupTimeModifierListeners() {
     // Agregar listeners para los selects
     if (pilotSelect) {
         pilotSelect.addEventListener('change', function() {
-            console.log('Piloto seleccionado:', this.value);
             // Limpiar selección de prueba cuando cambia el piloto
             if (pruebaSelect) {
                 pruebaSelect.value = '';
@@ -1739,7 +1738,6 @@ function setupTimeModifierListeners() {
     
     if (pruebaSelect) {
         pruebaSelect.addEventListener('change', function() {
-            console.log('Prueba seleccionada:', this.value);
             if (pilotSelect && pilotSelect.value) {
                 loadPilotTimes();
             }
@@ -1755,13 +1753,9 @@ function setupTimeModifierListeners() {
 
 // Poblar el select de pruebas con las pruebas del piloto seleccionado
 function populatePruebaSelectForPilot(numeroAuto) {
-    console.log('=== populatePruebaSelectForPilot ejecutándose ===');
-    console.log('Número de auto:', numeroAuto);
-    
     const pruebaSelect = document.getElementById('prueba-select');
     
     if (!pruebaSelect) {
-        console.log('❌ No se encontró el elemento prueba-select');
         return;
     }
     
@@ -1769,22 +1763,41 @@ function populatePruebaSelectForPilot(numeroAuto) {
     pruebaSelect.innerHTML = '<option value="">Selecciona una prueba</option>';
     
     if (!numeroAuto) {
-        console.log('❌ No se proporcionó número de auto');
         return;
     }
+    
+    // Convertir numeroAuto a string para comparación consistente
+    const numeroAutoStr = String(numeroAuto);
     
     // Obtener rally activo actual usando función helper
     const nombreRallyActivo = obtenerNombreRallyActual();
     
-    // Filtrar tiempos por rally y número de auto
+    // Verificar que allTiempos tiene datos
+    if (!allTiempos || allTiempos.length === 0) {
+        const option = document.createElement('option');
+        option.value = "";
+        option.textContent = "Cargando tiempos...";
+        option.disabled = true;
+        pruebaSelect.appendChild(option);
+        // Intentar recargar datos
+        setTimeout(() => {
+            connectAndLoad().then(() => {
+                populatePruebaSelectForPilot(numeroAuto);
+            });
+        }, 1000);
+        return;
+    }
+    
+    // Filtrar tiempos por rally y número de auto (usar comparación flexible de tipos)
     const tiemposFiltrados = (nombreRallyActivo ? 
         allTiempos.filter(t => t.nombre_rally === nombreRallyActivo) : 
-        allTiempos).filter(t => t.numero_auto == numeroAuto);
-    
-    console.log('📊 Tiempos filtrados para auto', numeroAuto, ':', tiemposFiltrados.length);
+        allTiempos).filter(t => {
+            // Comparación flexible: convertir ambos a string para comparar
+            const tNumero = String(t.numero_auto);
+            return tNumero === numeroAutoStr;
+        });
     
     if (!tiemposFiltrados || tiemposFiltrados.length === 0) {
-        console.log('No hay datos de tiempos disponibles para este piloto');
         const option = document.createElement('option');
         option.value = "";
         option.textContent = "Este piloto no tiene tiempos registrados";
@@ -1795,8 +1808,6 @@ function populatePruebaSelectForPilot(numeroAuto) {
     
     // Obtener pruebas únicas del piloto
     const pruebasUnicas = [...new Set(tiemposFiltrados.map(t => t.prueba).filter(prueba => prueba))].sort();
-    
-    console.log('Pruebas únicas encontradas para este piloto:', pruebasUnicas);
     
     if (pruebasUnicas.length === 0) {
         const option = document.createElement('option');
@@ -1813,8 +1824,6 @@ function populatePruebaSelectForPilot(numeroAuto) {
         option.textContent = prueba;
         pruebaSelect.appendChild(option);
     });
-    
-    console.log('✅ Select de pruebas poblado con', pruebasUnicas.length, 'opciones para el piloto');
 }
 
 // Cargar tiempos del piloto seleccionado
@@ -1822,31 +1831,21 @@ function loadPilotTimes() {
     const pilotSelect = document.getElementById('pilot-select');
     const pruebaSelect = document.getElementById('prueba-select');
     
-    console.log('=== loadPilotTimes ejecutándose ===');
-    console.log('Elementos encontrados:', { pilotSelect: !!pilotSelect, pruebaSelect: !!pruebaSelect });
-    
     if (!pilotSelect || !pruebaSelect) {
-        console.log('❌ Elementos del formulario no encontrados');
         return;
     }
     
     const numeroAuto = pilotSelect.value;
     const prueba = pruebaSelect.value;
     
-    console.log('Valores seleccionados:', { numeroAuto, prueba });
-    console.log('Datos de tiempos disponibles:', tiemposData.length);
-    console.log('Datos de tiempos:', tiemposData);
-    
     // Si solo hay piloto seleccionado pero no prueba, poblar pruebas del piloto
     if (numeroAuto && !prueba) {
-        console.log('Piloto seleccionado sin prueba, poblando pruebas del piloto...');
         populatePruebaSelectForPilot(numeroAuto);
         hideTimeDisplays();
         return;
     }
     
     if (!numeroAuto || !prueba) {
-        console.log('❌ Faltan datos de piloto o prueba');
         hideTimeDisplays();
         return;
     }
@@ -1859,29 +1858,16 @@ function loadPilotTimes() {
         allTiempos.filter(t => t.nombre_rally === nombreRallyActivo) : 
         allTiempos;
     
-    console.log('📊 Tiempos filtrados por rally:', tiemposFiltrados.length);
-    
     // Buscar el tiempo del piloto en la prueba seleccionada
-    console.log('🔍 Buscando tiempo...');
-    console.log('Tipo de numeroAuto:', typeof numeroAuto, 'Valor:', numeroAuto);
-    console.log('Tipo de prueba:', typeof prueba, 'Valor:', prueba);
-    
     const tiempoEncontrado = tiemposFiltrados.find(t => {
-        console.log('Comparando con tiempo:', t);
-        console.log('t.numero_auto:', t.numero_auto, 'tipo:', typeof t.numero_auto);
-        console.log('t.prueba:', t.prueba, 'tipo:', typeof t.prueba);
-        console.log('t.nombre_rally:', t.nombre_rally, 'rally activo:', nombreRallyActivo);
-        
-        const match = t.numero_auto == numeroAuto && 
-                      t.prueba === prueba && 
-                      (!nombreRallyActivo || t.nombre_rally === nombreRallyActivo);
-        console.log('Match final:', match);
-        return match;
+        const tNumero = String(t.numero_auto);
+        const numeroAutoStr = String(numeroAuto);
+        return tNumero === numeroAutoStr && 
+               t.prueba === prueba && 
+               (!nombreRallyActivo || t.nombre_rally === nombreRallyActivo);
     });
     
     if (tiempoEncontrado) {
-        console.log('✅ Tiempo encontrado:', tiempoEncontrado);
-        
         // Extraer el tiempo del campo correcto
         let tiempo = tiempoEncontrado.tiempo_transcurrido || 
                     tiempoEncontrado.tiempo_segundos ||
@@ -1892,8 +1878,6 @@ function loadPilotTimes() {
             tiempo = formatTime(tiempo);
         }
         
-        console.log('Tiempo extraído:', tiempo);
-        
         currentPilotTimes = {
             numero_auto: numeroAuto,
             prueba: prueba,
@@ -1902,11 +1886,8 @@ function loadPilotTimes() {
         };
         
         showCurrentTime(tiempo);
-        console.log('Llamando a updateTimePreview...');
         updateTimePreview();
     } else {
-        console.log('❌ No se encontró tiempo para este piloto en esta prueba');
-        console.log('Datos disponibles para este auto en este rally:', tiemposFiltrados.filter(t => t.numero_auto == numeroAuto));
         const rallyInfo = nombreRallyActivo ? ` en el rally ${nombreRallyActivo}` : '';
         showNotification(`No se encontró tiempo para el auto ${numeroAuto} en ${prueba}${rallyInfo}`, 'warning');
         hideTimeDisplays();
@@ -1915,18 +1896,9 @@ function loadPilotTimes() {
 
 // Mostrar tiempo actual
 function showCurrentTime(tiempo) {
-    console.log('=== showCurrentTime ejecutándose ===');
-    console.log('Tiempo a mostrar:', tiempo);
-    
     const timeDisplaysContainer = document.getElementById('time-displays-container');
     const currentTimeDisplay = document.getElementById('current-time-display');
     const currentTimeSpan = document.getElementById('current-time');
-    
-    console.log('Elementos encontrados:', { 
-        timeDisplaysContainer: !!timeDisplaysContainer,
-        currentTimeDisplay: !!currentTimeDisplay, 
-        currentTimeSpan: !!currentTimeSpan 
-    });
     
     if (currentTimeDisplay && currentTimeSpan) {
         // Formatear el tiempo para mostrar
@@ -1939,9 +1911,6 @@ function showCurrentTime(tiempo) {
         }
         
         currentTimeDisplay.style.display = 'block';
-        console.log('✅ Tiempo mostrado correctamente:', formattedTime);
-    } else {
-        console.log('❌ No se encontraron los elementos para mostrar el tiempo');
     }
 }
 
@@ -1973,11 +1942,7 @@ function formatTimeForDisplay(tiempo) {
 
 // Actualizar vista previa del tiempo
 function updateTimePreview() {
-    console.log('=== updateTimePreview ejecutándose ===');
-    console.log('currentPilotTimes:', currentPilotTimes);
-    
     if (!currentPilotTimes.tiempo) {
-        console.log('❌ No hay tiempo en currentPilotTimes');
         return;
     }
     
@@ -2074,55 +2039,42 @@ async function applyTimeModification() {
     }
     
     try {
-        // Calcular nuevo tiempo - SIEMPRE SUMAR al tiempo existente
-        console.log('🔍 CALCULANDO SUMA DE TIEMPO:');
-        console.log('currentPilotTimes completo:', currentPilotTimes);
-        console.log('Tiempo original de la BD:', currentPilotTimes.tiempo);
-        console.log('Tipo de tiempo:', typeof currentPilotTimes.tiempo);
-        
         // Verificar que el tiempo existe y no es null/undefined
         if (!currentPilotTimes.tiempo || currentPilotTimes.tiempo === 'null' || currentPilotTimes.tiempo === 'undefined') {
-            console.error('❌ ERROR: No hay tiempo válido para sumar');
             showNotification('Error: No se encontró tiempo válido para modificar', 'error');
             return;
         }
         
         // Convertir tiempo actual a segundos
         const currentTimeInSeconds = timeToSeconds(currentPilotTimes.tiempo);
-        console.log('Tiempo original en segundos:', currentTimeInSeconds);
         
         // Verificar que la conversión fue exitosa
         if (isNaN(currentTimeInSeconds) || currentTimeInSeconds === 0) {
-            console.error('❌ ERROR: No se pudo convertir el tiempo a segundos');
             showNotification('Error: Formato de tiempo inválido', 'error');
             return;
         }
         
         // Calcular ajuste en segundos
         const adjustmentInSeconds = (minutes * 60) + seconds + (milliseconds / 100);
-        console.log('Ajuste a sumar en segundos:', adjustmentInSeconds);
-        console.log('Minutos:', minutes, 'Segundos:', seconds, 'Milisegundos:', milliseconds);
         
-        // SIEMPRE SUMAR - no importa la operación seleccionada
-        const newTimeInSeconds = currentTimeInSeconds + adjustmentInSeconds;
-        console.log('SUMA FINAL: ' + currentTimeInSeconds + ' + ' + adjustmentInSeconds + ' = ' + newTimeInSeconds);
+        // Aplicar operación (sumar o restar)
+        const operation = Array.from(document.getElementsByName('operation')).find(radio => radio.checked)?.value || 'add';
+        let newTimeInSeconds;
+        if (operation === 'add') {
+            newTimeInSeconds = currentTimeInSeconds + adjustmentInSeconds;
+        } else {
+            newTimeInSeconds = currentTimeInSeconds - adjustmentInSeconds;
+        }
         
         // Asegurar que no sea negativo
         if (newTimeInSeconds < 0) {
-            console.log('⚠️ Tiempo negativo, ajustando a 0');
             newTimeInSeconds = 0;
         }
         
         const newTime = secondsToTime(newTimeInSeconds);
-        console.log('Nuevo tiempo formateado:', newTime);
-        console.log('✅ Tiempo actualizado de', currentPilotTimes.tiempo, 'a', newTime);
         
         // Actualizar en Supabase - actualizar hora_llegada en tabla llegadas
         if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient !== null) {
-            console.log('Actualizando hora_llegada en Supabase...');
-            console.log('Auto:', currentPilotTimes.numero_auto);
-            console.log('Prueba:', currentPilotTimes.prueba);
-            console.log('Nuevo tiempo total:', newTime);
             
             // Obtener rally activo actual usando función helper
             const nombreRallyActivo = obtenerNombreRallyActual();
@@ -2169,9 +2121,6 @@ async function applyTimeModification() {
             const horaActualSeg = timeToSeconds(llegada.hora_llegada);
             const nuevaHoraSeg = horaActualSeg + adjustmentInSeconds;
             const nuevaHoraLlegada = secondsToTime(nuevaHoraSeg);
-            
-            console.log('Ajuste aplicado:', adjustmentInSeconds, 'segundos');
-            console.log('Nueva hora de llegada:', nuevaHoraLlegada);
             
             // Actualizar hora_llegada en la tabla llegadas
             const { error: updateError } = await window.supabaseClient
@@ -2466,10 +2415,6 @@ async function updateTime() {
         }
         
         const newTime = secondsToTime(newTimeInSeconds);
-        
-        console.log('Tiempo actual:', currentPilotTimes.tiempo);
-        console.log('Ajuste:', `${operation} ${minutes}m ${seconds}s ${milliseconds}ms`);
-        console.log('Nuevo tiempo:', newTime);
         
         // Mostrar confirmación antes de actualizar
         const confirmar = confirm(`¿Estás seguro de que quieres cambiar el tiempo de ${currentPilotTimes.tiempo} a ${newTime}?`);
