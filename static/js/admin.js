@@ -2080,14 +2080,15 @@ async function applyTimeModification() {
         // Obtener rally activo actual usando función helper (definir antes de usar en múltiples lugares)
         const nombreRallyActivo = obtenerNombreRallyActual();
         
+        // Filtrar tiempos por rally (definir antes de usar en múltiples lugares)
+        const tiemposFiltrados = nombreRallyActivo ? 
+            allTiempos.filter(t => t.nombre_rally === nombreRallyActivo) : 
+            allTiempos;
+        
         // Actualizar en Supabase - actualizar hora_llegada en tabla llegadas
         if (typeof window.supabaseClient !== 'undefined' && window.supabaseClient !== null) {
             
             // Buscar el registro completo filtrando por rally
-            const tiemposFiltrados = nombreRallyActivo ? 
-                allTiempos.filter(t => t.nombre_rally === nombreRallyActivo) : 
-                allTiempos;
-                
             const tiempoCompleto = tiemposFiltrados.find(t => {
                 const tNumero = String(t.numero_auto);
                 const numeroAutoStr = String(currentPilotTimes.numero_auto);
