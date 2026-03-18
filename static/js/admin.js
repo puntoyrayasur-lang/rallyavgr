@@ -84,8 +84,8 @@ function getNotificationIcon(type) {
 }
 
 // Configuración de Supabase
-const SUPABASE_URL = 'https://ymcfzcljdxtujgiaiqki.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InltY2Z6Y2xqZHh0dWpnaWFpcWtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk5NDYzOTIsImV4cCI6MjA3NTUyMjM5Mn0.BsjAqaqgC64tTzNvx1HZc1exWSZEs5znLFKl2Ucp8u4';
+const SUPABASE_URL = 'https://heelfndrqcpbobpnqaou.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhlZWxmbmRycWNwYm9icG5xYW91Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM4MzcxMzEsImV4cCI6MjA4OTQxMzEzMX0.puRFDQwAH-b1v7jRfRI7q_L5tUDLA9_qavI43C2aBns';
 
 // Inicializar cliente de Supabase con espera
 let supabaseClient = null;
